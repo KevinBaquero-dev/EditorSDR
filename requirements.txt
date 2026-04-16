@@ -1,0 +1,4 @@
+yt-dlp
+faster-whisper
+librosa
+scipy
