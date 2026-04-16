@@ -1,84 +1,38 @@
-# EditorSDR — Stream Content Pipeline
+# EditorSDR
 
-Pipeline automatizado para convertir streams de Twitch en clips cortos listos para redes sociales.
+Convierte tus streams de Twitch en clips cortos automáticamente.
 
-## ¿Qué hace?
+Subes el link de tu VOD y el sistema lo analiza, detecta los mejores momentos y te entrega los clips listos.
 
-Toma un VOD de Twitch (o archivo local), lo transcribe, detecta los momentos de mayor energía de audio y genera clips automáticamente.
+---
 
-## Flujo
+## ¿Cómo funciona?
 
-```
-URL / archivo local
-  → Ingestion       (descarga el VOD como .mp4)
-  → Transcription   (genera transcript con timestamps)
-  → Audio Analysis  (detecta picos de audio)
-  → Clip Candidates (genera segmentos candidatos)
-  → Clipper         (corta los clips con FFmpeg)
-  → Exporter        (organiza la salida)
-```
+1. Le das la URL de tu stream
+2. El sistema lo descarga
+3. Escucha el audio y detecta los momentos con más energía
+4. Genera los clips automáticamente
+5. Te los entrega organizados y listos para subir
 
-## Requisitos
+Sin editar a mano. Sin revisar horas de video.
 
-- Python 3.10+
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [faster-whisper](https://github.com/guillaumekln/faster-whisper)
-- FFmpeg
-- NVIDIA GPU recomendada (RTX 4060 8GB o similar)
+---
 
-## Instalación
+## ¿Para quién es esto?
 
-```bash
-pip install yt-dlp faster-whisper
-```
+Para streamers que quieren aprovechar su contenido en redes sociales pero no tienen tiempo (ni ganas) de editar cada clip a mano.
 
-FFmpeg debe estar disponible en el PATH del sistema.
-
-## Uso
-
-```python
-from src.modules.ingestion import download_vod
-from src.modules.transcription import transcribe_video
-
-video_path = download_vod("https://www.twitch.tv/videos/123456789")
-transcript_path = transcribe_video(video_path)
-```
-
-## Estructura del proyecto
-
-```
-EditorSDR/
-├── docs/
-│   ├── CLAUDE.md           # Contexto operativo
-│   ├── ARCHITECTURE.md     # Arquitectura del sistema
-│   ├── DECISIONS.md        # Decisiones técnicas
-│   ├── LESSONS.md          # Errores y aprendizajes
-│   ├── TODO.md             # Pendientes
-│   ├── TEST_CASES.md       # Casos de prueba
-│   └── PROMPTS.md          # Prompts versionados
-├── src/
-│   ├── modules/
-│   │   ├── ingestion.py
-│   │   └── transcription.py
-│   └── core/
-├── output/
-│   ├── raw/                # VOD descargado
-│   ├── transcripts/        # transcript.json
-│   └── clips/              # Clips generados
-└── logs/
-```
+---
 
 ## Estado actual
 
-| Módulo | Estado |
-|---|---|
-| ingestion | Implementado |
-| transcription | Implementado |
-| audio_analysis | Pendiente |
-| clip_candidates | Pendiente |
-| clipper | Pendiente |
-| exporter | Pendiente |
+El proyecto está en desarrollo. Estos son los pasos del sistema y cuáles están listos:
 
-## Framework
-
-Desarrollado bajo [SckrusH Framework v1.0](docs/ARCHITECTURE.md).
+| Paso | Qué hace | Estado |
+|---|---|---|
+| Descarga | Baja el VOD de Twitch | Listo |
+| Transcripción | Convierte el audio en texto con timestamps | Listo |
+| Análisis de audio | Detecta los momentos de mayor energía | Listo |
+| Selección de clips | Elige los mejores momentos | En desarrollo |
+| Corte | Recorta los clips del video | Pendiente |
+| Exportación | Organiza todo listo para usar | Pendiente |
