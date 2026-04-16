@@ -3,20 +3,20 @@
 
 ## Estado del proyecto
 Fase actual: MVP — Implementación
-Módulo en desarrollo: clip_candidates
+Módulo en desarrollo: clipper
 Bloqueos: Ninguno
 
 ## Critico
 _Sin bloqueos._
 
 ## Importante
-- Validar audio_analysis con vod.mp4 real (test: peaks.json no vacío, timestamps en rango válido)
-- Validar transcription actualizada con QG: sin segmentos "...", logs de segmentos largos
-- Confirmar instalaciones: yt-dlp, faster-whisper, librosa, scipy
+- Validar clip_candidate_generator con transcript.json + peaks.json reales
+- Verificar que no hay clips duplicados ni solapados en output
+- Confirmar que nearest_text en candidatos tiene sentido con el momento del video
 
 ## Futuro
-- Re-segmentación de segmentos >30s en clip_candidates (ya documentado en DECISIONS.md)
+- Ajustar ventana WINDOW_BEFORE/AFTER según feedback de clips reales (ahora: -10s/+15s)
+- Filtrar picos en audio_analysis con derivada de energía para reducir ASMR accidental (teclado, ruido ambiente)
+- Ignorar frecuencias bajas constantes (música de fondo) en audio_analysis v0.2
 - Modelo configurable en transcription via parámetro
 - SR y threshold configurable en audio_analysis via parámetros
-- Output dir configurable en transcription y audio_analysis
-- Progress logging con tqdm para audio largo

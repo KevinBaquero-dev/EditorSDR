@@ -23,7 +23,7 @@ Impacto: descarga idempotente; no bloquea reinicios del pipeline
 Versión: v0.1
 
 ## Decisión — 2026-04-16
-Decisión: Centralizar salidas en /output/raw/, /output/transcripts/, /output/analysis/
+Decisión: Centralizar salidas en /output/raw/, /output/transcripts/, /output/analysis/, /output/candidates/
 Opciones consideradas: rutas por módulo, directorio plano, estructura por fecha
 Razón: predecible para módulos downstream; fácil de inspeccionar manualmente
 Impacto: todos los módulos asumen esta estructura
@@ -31,42 +31,63 @@ Versión: v0.1
 
 ## Decisión — 2026-04-16
 Decisión: faster-whisper modelo "small" con float16 en CUDA para transcription
-Opciones consideradas: tiny (rápido/impreciso), small (balance), medium (lento), large-v2 (puede saturar VRAM)
+Opciones consideradas: tiny, small, medium, large-v2
 Razón: "small" float16 cabe con margen en RTX 4060 8GB; precisión suficiente para MVP
 Impacto: velocidad aceptable; si falla precisión → escalar a "medium" en v0.2
 Versión: v0.1
 
 ## Decisión — 2026-04-16
-Decisión: Mantener segmentación original de Whisper; re-segmentar en clip_candidates
-Opciones consideradas: re-segmentar en transcription, mantener original, truncar en transcription
-Razón: transcription no debe mezclar responsabilidades; segmentos >30s se manejan downstream
-Impacto: clip_candidates debe subdividir segmentos largos antes de generar candidatos
+Decisión: Mantener segmentación original de Whisper; re-segmentar en clip_candidates si necesario
+Opciones consideradas: re-segmentar en transcription, mantener original, truncar
+Razón: transcription no debe mezclar responsabilidades
+Impacto: clip_candidates es responsable de manejar segmentos >30s si afectan las ventanas
 Versión: v0.1
 
 ## Decisión — 2026-04-16
 Decisión: Filtrar segmentos vacíos/basura de Whisper en transcription
 Opciones consideradas: mantener todo, filtrar vacíos, filtrar por confianza
-Razón: Whisper genera "...", ".", " " en silencio — contaminan clip_candidates
+Razón: "...", ".", " " en silencio contaminan clip_candidates
 Impacto: transcript más limpio; menos falsos candidatos downstream
 Versión: v0.1
 
 ## Decisión — 2026-04-16
 Decisión: audio_analysis usa librosa con SR=16000 mono
-Opciones consideradas: pydub (más simple), librosa SR original, librosa SR=16000
-Razón: 16000 Hz es suficiente para análisis de energía RMS; reduce RAM de ~2GB a ~690MB en VOD 3h
-Impacto: carga en RAM manejable con 16GB; no afecta precisión de detección de picos
+Opciones consideradas: pydub, librosa SR original, librosa SR=16000
+Razón: 16000 Hz suficiente para energía RMS; reduce RAM a ~690MB en VOD 3h (dentro de 16GB)
+Impacto: carga manejable; no afecta precisión de detección de picos
 Versión: v0.1
 
 ## Decisión — 2026-04-16
 Decisión: Umbral dinámico en audio_analysis (mean + 1 std dev)
 Opciones consideradas: umbral fijo, percentil 90, mean + N*std
-Razón: umbral fijo no escala entre streams tranquilos y streams ruidosos; mean+std se adapta al contenido
-Impacto: menos falsos positivos en streams de baja energía; más consistencia entre videos distintos
+Razón: se adapta al contenido; streams tranquilos y ruidosos no requieren ajuste manual
+Impacto: menos falsos positivos; consistencia entre videos distintos
 Versión: v0.1
 
 ## Decisión — 2026-04-16
 Decisión: Mínimo 2s de distancia entre picos en audio_analysis
 Opciones consideradas: 0.5s, 1s, 2s, 5s
-Razón: gritos y reacciones duran >1s; 2s evita que un solo evento genere 10 picos solapados
-Impacto: peaks.json más limpio; menos candidatos redundantes en clip_candidates
+Razón: evita que un solo grito genere 10 picos solapados
+Impacto: peaks.json más limpio; menos candidatos redundantes
+Versión: v0.1
+
+## Decisión — 2026-04-16
+Decisión: Ventana de clip -10s / +15s alrededor del pico en clip_candidates
+Opciones consideradas: -5/+10, -10/+15, -15/+20, simétrica
+Razón: +15s da más contexto post-pico porque las reacciones se extienden después del momento; -10s da contexto previo suficiente para entender qué pasó
+Impacto: clips con contexto; ajustable en v0.2 con feedback de clips reales
+Versión: v0.1
+
+## Decisión — 2026-04-16
+Decisión: Merge de candidatos con solapamiento >50% del clip más corto
+Opciones consideradas: no merge, merge siempre, merge por porcentaje
+Razón: picos cercanos en el tiempo forman parte del mismo momento; merge evita clips duplicados del mismo evento
+Impacto: menos candidatos redundantes; clips más coherentes
+Versión: v0.1
+
+## Decisión — 2026-04-16
+Decisión: Incluir nearest_text en clips_candidates.json
+Opciones consideradas: solo start/end/peak, incluir texto más cercano
+Razón: permite validación visual rápida de si el candidato tiene sentido sin abrir el video
+Impacto: JSON más grande pero invaluable para debugging y QG del Director
 Versión: v0.1

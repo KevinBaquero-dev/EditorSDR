@@ -72,3 +72,21 @@ Input: video sin audio o muy baja energía
 Output esperado: peaks.json vacío [], sin excepción
 Resultado actual: —
 Estado: ❌
+
+## Test: clip_candidates — candidatos coherentes
+Input: transcript.json + peaks.json reales
+Output esperado: 5–25 candidatos, duración entre 8s y 60s, sin duplicados
+Resultado actual: —
+Estado: ❌
+
+## Test: clip_candidates — sin peaks
+Input: peaks.json vacío []
+Output esperado: clips_candidates.json vacío [], sin excepción
+Resultado actual: —
+Estado: ❌
+
+## Test: clip_candidates — solapamiento
+Input: peaks.json con 3 picos a 1s de diferencia
+Output esperado: 1 o 2 candidatos mergeados, no 3 separados
+Resultado actual: —
+Estado: ❌
