@@ -3,19 +3,20 @@
 
 ## Estado del proyecto
 Fase actual: MVP — Implementación
-Módulo en desarrollo: audio_analysis
+Módulo en desarrollo: clip_candidates
 Bloqueos: Ninguno
 
 ## Critico
 _Sin bloqueos._
 
 ## Importante
-- Validar ingestion con URL real de Twitch (test: descarga + size check + ruta correcta)
-- Validar transcription con vod.mp4 real (test: JSON válido + timestamps + segmentos no vacíos)
-- Confirmar que yt-dlp y faster-whisper están instalados en el entorno
+- Validar audio_analysis con vod.mp4 real (test: peaks.json no vacío, timestamps en rango válido)
+- Validar transcription actualizada con QG: sin segmentos "...", logs de segmentos largos
+- Confirmar instalaciones: yt-dlp, faster-whisper, librosa, scipy
 
 ## Futuro
-- Soporte para archivos locales en ingestion (skip yt-dlp si ya es ruta local)
-- Modelo configurable en transcription via argumento (no hardcodeado)
-- Progress logging con tqdm para descargas largas
-- Output dir configurable en transcription (actualmente fijo en output/transcripts)
+- Re-segmentación de segmentos >30s en clip_candidates (ya documentado en DECISIONS.md)
+- Modelo configurable en transcription via parámetro
+- SR y threshold configurable en audio_analysis via parámetros
+- Output dir configurable en transcription y audio_analysis
+- Progress logging con tqdm para audio largo
