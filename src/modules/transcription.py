@@ -22,6 +22,10 @@ def transcribe_video(video_path: str) -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_path = os.path.join(OUTPUT_DIR, "transcript.json")
 
+    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+        logger.info(f"Transcript already exists, skipping: {output_path}")
+        return output_path
+
     device = "cuda"
     compute_type = "float16"
 

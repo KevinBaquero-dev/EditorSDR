@@ -1,5 +1,23 @@
+import glob
 import logging
+import os
 import sys
+
+# Registrar DLLs de NVIDIA y VC++ runtime antes de importar ctranslate2/faster-whisper
+# ctranslate2 carga cublas/cudnn tanto via add_dll_directory como via PATH en runtime
+if sys.platform == "win32":
+    _site_packages = os.path.join(os.path.dirname(sys.executable), "Lib", "site-packages")
+    _nvidia_dirs = glob.glob(os.path.join(_site_packages, "nvidia", "*", "bin"))
+    for _dll_dir in _nvidia_dirs:
+        os.add_dll_directory(_dll_dir)
+    # Agregar también a PATH para que ctranslate2 encuentre las libs en runtime
+    if _nvidia_dirs:
+        os.environ["PATH"] = os.pathsep.join(_nvidia_dirs) + os.pathsep + os.environ.get("PATH", "")
+    # msvcp140.dll no está en System32 pero sí en Edge-WebView (Windows 11)
+    _edge_webview = r"C:\Windows\System32\Microsoft-Edge-WebView"
+    if os.path.isdir(_edge_webview):
+        os.add_dll_directory(_edge_webview)
+        os.environ["PATH"] = _edge_webview + os.pathsep + os.environ.get("PATH", "")
 
 logging.basicConfig(
     level=logging.INFO,

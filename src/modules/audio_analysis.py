@@ -2,6 +2,7 @@ import json
 import logging
 import os
 
+import av
 import librosa
 import numpy as np
 from scipy.signal import find_peaks
@@ -16,6 +17,17 @@ MAX_PEAKS = 50
 MIN_PEAK_DISTANCE_SEC = 2.0  # evita picos agrupados en el mismo grito
 
 
+def _load_audio_av(video_path: str, target_sr: int) -> tuple[np.ndarray, int]:
+    """Carga audio de un video usando PyAV (sin necesidad de ffmpeg en PATH)."""
+    chunks = []
+    with av.open(video_path) as container:
+        resampler = av.AudioResampler(format="fltp", layout="mono", rate=target_sr)
+        for frame in container.decode(audio=0):
+            for resampled in resampler.resample(frame):
+                chunks.append(resampled.to_ndarray()[0])
+    return np.concatenate(chunks).astype(np.float32), target_sr
+
+
 def analyze_audio(video_path: str) -> str:
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
@@ -24,8 +36,8 @@ def analyze_audio(video_path: str) -> str:
     output_path = os.path.join(OUTPUT_DIR, "peaks.json")
 
     logger.info(f"Loading audio: {video_path}")
-    y, sr = librosa.load(video_path, sr=SAMPLE_RATE, mono=True)
-    duration = librosa.get_duration(y=y, sr=sr)
+    y, sr = _load_audio_av(video_path, SAMPLE_RATE)
+    duration = len(y) / sr
     logger.info(f"Duration: {duration:.1f}s | Sample rate: {sr}Hz")
 
     rms = librosa.feature.rms(y=y, frame_length=FRAME_LENGTH, hop_length=HOP_LENGTH)[0]
