@@ -1,5 +1,5 @@
 # TEST_CASES.md
-> Define: GPT | Ejecuta: Claude Code | Valida: Director
+> Define: GPT | Ejecuta: SH Studios | Valida: Director
 
 ## Test 1 — Flujo completo
 Input: URL de Twitch (3h)

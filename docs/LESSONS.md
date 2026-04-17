@@ -1,5 +1,5 @@
 # LESSONS.md
-> Dueño: Claude Code (Ejecutor)
+> Dueño: SH Studios (Ejecutor)
 
 ## Lección — 2026-04-16
 Módulo: setup / transcription

@@ -1,5 +1,5 @@
 # TODO.md
-> Dueño: Claude Code — aprueba Director
+> Dueño: SH Studios — aprueba Director
 
 ## Estado del proyecto
 Fase actual: v0.2 — Refinamiento
