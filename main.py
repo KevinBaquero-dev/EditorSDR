@@ -33,6 +33,7 @@ from src.modules.clipper import generate_clips
 from src.modules.scoring_engine import score_clips
 from src.modules.selector import select_clips
 from src.modules.start_refiner import refine_starts
+from src.modules.vertical_formatter import format_vertical
 from src.modules.exporter import export_pipeline
 
 
@@ -63,15 +64,19 @@ def run(url: str) -> None:
     ranked_path = score_clips(candidates_path, transcript_path, peaks_path)
     print(f"    {ranked_path}\n")
 
-    print("7/9 Seleccionando top clips...")
+    print("7/10 Seleccionando top clips...")
     selected_path = select_clips(ranked_path)
     print(f"    {selected_path}\n")
 
-    print("8/9 Refinando inicios...")
+    print("8/10 Refinando inicios...")
     refined_path = refine_starts(selected_path, transcript_path)
     print(f"    {refined_path}\n")
 
-    print("9/9 Exportando...")
+    print("9/10 Formato vertical (9:16)...")
+    vertical_dir = format_vertical(refined_path, video_path)
+    print(f"    {vertical_dir}\n")
+
+    print("10/10 Exportando...")
     export_dir = export_pipeline("output")
     print(f"    {export_dir}\n")
 

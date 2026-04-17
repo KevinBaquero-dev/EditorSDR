@@ -10,15 +10,20 @@ SILENCE_GAP = 1.5            # si no hay texto en los primeros Xs → considera 
 PRE_BUFFER = 0.15            # buffer antes del inicio de segmento para no arrancar justo en la vocal
 MIN_CLIP_DURATION = 8.0
 
+# Umbral de intensidad para proteger buildup emocional
+BUILDUP_INTENSITY_HIGH = 0.80   # por encima: no hacer silence_skip (necesita tensión previa)
+BUILDUP_INTENSITY_MID = 0.60    # entre mid y high: silence_skip máx 1.5s
+SILENCE_SKIP_MAX_DELTA_MID = 1.5
 
-def _refined_start(clip_start: float, peak_ts: float, transcript: list) -> tuple[float, str]:
+
+def _refined_start(clip_start: float, peak_ts: float, transcript: list, intensity: float = 0.5) -> tuple[float, str]:
     """
     Devuelve (nuevo_start, reason).
 
     Casos:
     1. silence_skip   — clip empieza en silencio, mueve al inicio del siguiente texto
     2. phrase_align   — clip empieza a mitad de frase, retrocede al inicio de esa frase
-    3. no_change      — inicio ya es limpio
+    3. no_change      — inicio ya es limpio o protegido por intensidad alta
     """
     # Segmentos activos o que empiezan dentro de la ventana de silencio
     covering = [
@@ -27,18 +32,28 @@ def _refined_start(clip_start: float, peak_ts: float, transcript: list) -> tuple
     ]
 
     if not covering:
-        # Caso 1: silencio al inicio — buscar siguiente segmento antes del peak
+        # Intensidad alta → proteger buildup, no saltar silencio
+        if intensity >= BUILDUP_INTENSITY_HIGH:
+            return clip_start, "no_change"
+
         upcoming = [s for s in transcript if clip_start < s["start"] < peak_ts]
         if upcoming:
             next_seg = min(upcoming, key=lambda s: s["start"])
+            delta = next_seg["start"] - clip_start
+
+            # Intensidad media → silence_skip limitado a 1.5s
+            if intensity >= BUILDUP_INTENSITY_MID and delta > SILENCE_SKIP_MAX_DELTA_MID:
+                return clip_start, "no_change"
+
             new_start = max(0.0, next_seg["start"] - PRE_BUFFER)
-            # Verificar que no rompamos duración mínima
             if peak_ts - new_start < MIN_CLIP_DURATION:
                 return clip_start, "no_change"
             return new_start, "silence_skip"
+
         return clip_start, "no_change"
 
     # Caso 2: clip empieza a mitad de frase (el segmento empezó antes del clip_start)
+    # phrase_align se aplica siempre — empezar al inicio de la idea es correcto a cualquier intensidad
     mid_sentence = next((s for s in covering if s["start"] < clip_start - 0.3), None)
     if mid_sentence:
         candidate = max(0.0, mid_sentence["start"] - PRE_BUFFER)
@@ -76,7 +91,8 @@ def refine_starts(selected_path: str, transcript_path: str) -> str:
         original_start = clip["start"]
         peak_ts = clip.get("peak_timestamp", (clip["start"] + clip["end"]) / 2)
 
-        new_start, reason = _refined_start(original_start, peak_ts, transcript)
+        intensity = clip.get("features", {}).get("intensity", 0.5)
+        new_start, reason = _refined_start(original_start, peak_ts, transcript, intensity)
 
         entry = dict(clip)
         entry["start"] = round(new_start, 3)
