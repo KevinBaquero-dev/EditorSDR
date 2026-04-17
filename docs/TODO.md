@@ -24,6 +24,7 @@ Bloqueos: Ninguno
 - [x] subtitle_renderer — quema SRT (editado o auto) sobre clips verticales
 - [x] Flag --subtitles y --review en main.py
 - [x] Protección de edición manual (subtitles_edited en meta)
+- [x] Ajuste de estilo de subtítulos (FontSize 18, bottom center, MarginV 60)
 
 ## Importante
 - Agregar vod_url y vod_title a metadata.json en exporter

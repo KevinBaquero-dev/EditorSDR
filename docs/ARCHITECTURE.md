@@ -71,6 +71,11 @@ transcript → subtitle_builder → clip_NNN.json  (fuente de verdad, editable)
 → subtitle_renderer → subtitled_NNN.mp4
 ```
 
+## Estilo de subtítulos (subtitle_engine.py — _SUBTITLE_STYLE)
+- FontSize=18, Bold=1, FontName=Arial
+- Alignment=2 (bottom center), MarginV=60px desde borde inferior
+- PrimaryColour blanco, OutlineColour negro, Outline=3, Shadow=1
+
 ## Reglas
 - Cada módulo tiene un único input/output explícito
 - No hay lógica cruzada entre módulos

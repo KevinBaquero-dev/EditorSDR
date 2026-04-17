@@ -170,6 +170,8 @@ Los parámetros más útiles están en los módulos:
 | `CROP_OFFSET_PX` | `vertical_formatter.py` | 0 | Offset horizontal en píxeles |
 | `SUBTITLE_OFFSET` | `subtitle_builder.py` | -0.2s | Adelantar subtítulos (sincronía) |
 | `CAPITALIZE` | `subtitle_builder.py` | True | Capitalizar inicio de cada chunk |
+| `FontSize` | `subtitle_engine.py` | 18 | Tamaño de fuente (1080×1920) |
+| `MarginV` | `subtitle_engine.py` | 60 | Distancia en px desde el borde inferior |
 
 ---
 
@@ -188,6 +190,7 @@ Los parámetros más útiles están en los módulos:
 | Formato vertical 9:16 (crop configurable) | ✅ Listo v0.4 |
 | Subtítulos editables (JSON → SRT → render) | ✅ Listo v0.4.2 |
 | Highlight keywords (! ?) | ✅ Listo |
+| Ajuste de estilo de subtítulos (size, posición) | ✅ Listo |
 | Feedback humano → ajuste de pesos | 🔲 Pendiente |
 | Scoring antes de clipper (refactor) | 🔲 Pendiente |
 | Auto-upload | 🔲 Futuro |
