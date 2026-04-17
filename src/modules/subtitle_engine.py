@@ -14,19 +14,19 @@ OUTPUT_DIR_SUBTITLED = "output/subtitled"
 # Valores en force_style de FFmpeg: escala relativa al alto del video
 _SUBTITLE_STYLE = (
     "FontName=Arial,"
-    "FontSize=72,"
+    "FontSize=40,"
     "PrimaryColour=&H00FFFFFF,"   # blanco
     "OutlineColour=&H00000000,"   # negro
     "BackColour=&H80000000,"      # sombra semitransparente
     "Bold=1,"
     "BorderStyle=1,"
-    "Outline=4,"
-    "Shadow=2,"
+    "Outline=3,"
+    "Shadow=1,"
     "Alignment=2,"                # bottom center
-    "MarginV=160"                 # px desde el borde inferior
+    "MarginV=200"                 # px desde el borde inferior
 )
 
-_MAX_CHARS_PER_LINE = 28  # ~2 líneas limpias en 1080px con FontSize=72
+_MAX_CHARS_PER_LINE = 38  # ~2 líneas limpias en 1080px con FontSize=40
 
 
 def _find_ffmpeg() -> str:

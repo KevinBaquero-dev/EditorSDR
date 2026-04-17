@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = "output/subtitles"
 
 MAX_CHUNK_DURATION = 2.5   # segundos máx por segmento antes de dividir
-MAX_LINE_CHARS = 42        # caracteres máx por línea
+MAX_LINE_CHARS = 38        # caracteres máx por línea (coherente con FontSize=40 en 1080px)
 MAX_LINES = 2              # líneas máx por segmento
 SUBTITLE_OFFSET = -0.2     # offset global en segundos (negativo = aparece antes)
 CAPITALIZE = True          # capitalizar primera letra de cada chunk (desactivar para slang/minúsculas intencionales)
