@@ -13,23 +13,54 @@ MAX_CHUNK_DURATION = 2.5   # segundos máx por segmento antes de dividir
 MAX_LINE_CHARS = 42        # caracteres máx por línea
 MAX_LINES = 2              # líneas máx por segmento
 SUBTITLE_OFFSET = -0.2     # offset global en segundos (negativo = aparece antes)
+CAPITALIZE = True          # capitalizar primera letra de cada chunk (desactivar para slang/minúsculas intencionales)
+
+# Palabras que NO se destacan aunque el chunk tenga ! o ?
+_STOPWORDS = {
+    "de", "la", "el", "un", "una", "y", "a", "me", "te", "se", "lo", "le",
+    "no", "que", "en", "es", "con", "por", "para", "como", "pero", "si",
+    "o", "al", "del", "las", "los", "mi", "tu", "su", "ya", "más", "hay",
+    "muy", "tan", "qué", "cómo", "porque", "cuando", "donde", "esto",
+    "esta", "ese", "esa", "yo", "él", "tú", "va", "ha", "está", "le",
+}
 
 
 # ─── normalización de texto ───────────────────────────────────────────────────
 
-def _normalize(text: str) -> str:
-    """Trim, colapsa espacios múltiples, capitaliza primera letra."""
+def _normalize(text: str, capitalize: bool = CAPITALIZE) -> str:
+    """Trim, colapsa espacios múltiples. Capitaliza solo si `capitalize=True`."""
     text = text.strip()
     text = re.sub(r" {2,}", " ", text)
-    if text:
+    if capitalize and text and text[0].isalpha() and text[0].islower():
         text = text[0].upper() + text[1:]
     return text
 
 
+def _highlight_keywords(text: str) -> str:
+    """
+    Pone en mayúsculas las palabras clave en chunks con ! o ?.
+    Clave = palabra que no es stopword y tiene más de 2 letras.
+    No modifica puntuación ni estructura del texto.
+    """
+    if "!" not in text and "?" not in text:
+        return text
+
+    words = text.split()
+    result = []
+    for word in words:
+        clean = re.sub(r"[^\w]", "", word.lower())
+        if clean and clean not in _STOPWORDS and len(clean) > 2:
+            result.append(word.upper())
+        else:
+            result.append(word)
+    return " ".join(result)
+
+
 def _wrap(text: str) -> str:
     """
-    Divide el texto en máximo MAX_LINES líneas de máximo MAX_LINE_CHARS caracteres.
-    No corta palabras. Trunca con … si no cabe en 2 líneas.
+    Divide en máximo MAX_LINES líneas de MAX_LINE_CHARS caracteres.
+    No corta palabras.
+    El `…` es último recurso — el chunking previo debería evitarlo.
     """
     if len(text) <= MAX_LINE_CHARS:
         return text
@@ -50,15 +81,12 @@ def _wrap(text: str) -> str:
     if current and len(lines) < MAX_LINES:
         lines.append(" ".join(current))
 
-    result = "\n".join(lines)
-    # Truncar si todavía hay más texto que no cupo
-    remaining = words[sum(len(l.split()) for l in lines):]
-    if remaining:
-        last = lines[-1]
-        lines[-1] = last.rstrip() + "…"
-        result = "\n".join(lines)
+    # … solo si queda texto real después de dos líneas completas
+    remaining_words = sum(len(l.split()) for l in lines)
+    if remaining_words < len(words):
+        lines[-1] = lines[-1].rstrip() + "…"
 
-    return result
+    return "\n".join(lines)
 
 
 # ─── chunking inteligente ─────────────────────────────────────────────────────
@@ -92,7 +120,7 @@ def _chunk_segment(seg: dict) -> list[dict]:
     duration = seg["end"] - seg["start"]
 
     if duration <= MAX_CHUNK_DURATION and len(text) <= MAX_LINE_CHARS * MAX_LINES:
-        return [{"start": seg["start"], "end": seg["end"], "text": text}]
+        return [{"start": seg["start"], "end": seg["end"], "text": _highlight_keywords(text)}]
 
     parts = _split_by_punctuation(text)
     if len(parts) == 1:
@@ -101,8 +129,8 @@ def _chunk_segment(seg: dict) -> list[dict]:
         words = text.split()
         half = len(words) // 2
         return [
-            {"start": seg["start"], "end": round(mid, 3), "text": " ".join(words[:half])},
-            {"start": round(mid, 3), "end": seg["end"], "text": " ".join(words[half:])},
+            {"start": seg["start"], "end": round(mid, 3), "text": _highlight_keywords(" ".join(words[:half]))},
+            {"start": round(mid, 3), "end": seg["end"], "text": _highlight_keywords(" ".join(words[half:]))},
         ]
 
     # Distribuir tiempo proporcional a la longitud de cada parte
@@ -111,7 +139,8 @@ def _chunk_segment(seg: dict) -> list[dict]:
     for part in parts:
         ratio = len(part) / total_chars
         chunk_end = round(t + duration * ratio, 3)
-        result.append({"start": round(t, 3), "end": chunk_end, "text": _normalize(part)})
+        normalized = _normalize(part)
+        result.append({"start": round(t, 3), "end": chunk_end, "text": _highlight_keywords(normalized)})
         t = chunk_end
 
     # Asegurar que el último chunk termine exactamente donde termina el segmento
