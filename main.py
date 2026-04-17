@@ -30,6 +30,7 @@ from src.modules.transcription import transcribe_video
 from src.modules.audio_analysis import analyze_audio
 from src.modules.clip_candidate_generator import generate_clip_candidates
 from src.modules.clipper import generate_clips
+from src.modules.exporter import export_pipeline
 
 
 def run(url: str) -> None:
@@ -55,8 +56,12 @@ def run(url: str) -> None:
     clips_dir = generate_clips(video_path, candidates_path)
     print(f"    {clips_dir}\n")
 
+    print("6/6 Exportando...")
+    export_dir = export_pipeline("output")
+    print(f"    {export_dir}\n")
+
     print("=== Listo ===")
-    print(f"Clips en: {clips_dir}")
+    print(f"Export en: {export_dir}")
 
 
 if __name__ == "__main__":

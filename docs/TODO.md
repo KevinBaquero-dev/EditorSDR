@@ -2,21 +2,21 @@
 > Dueño: Claude Code — aprueba Director
 
 ## Estado del proyecto
-Fase actual: MVP — Implementación
-Módulo en desarrollo: clipper
+Fase actual: MVP — Completo
+Módulo en desarrollo: Ninguno (todos implementados)
 Bloqueos: Ninguno
 
 ## Critico
 _Sin bloqueos._
 
 ## Importante
-- Validar clip_candidate_generator con transcript.json + peaks.json reales
-- Verificar que no hay clips duplicados ni solapados en output
-- Confirmar que nearest_text en candidatos tiene sentido con el momento del video
+- Revisar clips generados manualmente: ¿los cortes tienen sentido?
+- Validar que metadata.json sea útil para comparar runs futuros
 
 ## Futuro
-- Ajustar ventana WINDOW_BEFORE/AFTER según feedback de clips reales (ahora: -10s/+15s)
-- Filtrar picos en audio_analysis con derivada de energía para reducir ASMR accidental (teclado, ruido ambiente)
-- Ignorar frecuencias bajas constantes (música de fondo) en audio_analysis v0.2
-- Modelo configurable en transcription via parámetro
-- SR y threshold configurable en audio_analysis via parámetros
+- Ajustar ventana WINDOW_BEFORE/AFTER en clip_candidates con feedback de clips reales
+- Filtrar frecuencias bajas constantes (ruido/música) en audio_analysis v0.2
+- Derivada de energía para mejor detección de picos bruscos
+- Modelo configurable en transcription via parámetro (tiny/small/medium)
+- Campo "vod_url" y "vod_title" en metadata.json
+- Modo verbose/quiet en main.py via argumento
