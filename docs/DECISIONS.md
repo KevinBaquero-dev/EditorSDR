@@ -91,3 +91,31 @@ Opciones consideradas: solo start/end/peak, incluir texto más cercano
 Razón: permite validación visual rápida de si el candidato tiene sentido sin abrir el video
 Impacto: JSON más grande pero invaluable para debugging y QG del Director
 Versión: v0.1
+
+## Decisión — 2026-04-16
+Decisión: Ventana dinámica en clip_candidates según intensidad del pico
+Opciones consideradas: ventana fija (-10/+15), ventana por percentil, dinámica por intensidad
+Razón: picos de alta intensidad representan momentos más importantes — merecen más contexto previo y posterior; ventana fija recortaba momentos clave
+Impacto: clips de alta intensidad (>0.8) tienen ventana -15s/+20s; intensidad media -12s/+18s; baja -10s/+15s
+Versión: v0.2
+
+## Decisión — 2026-04-16
+Decisión: Extender final de clip al cierre del segmento de transcript en curso
+Opciones consideradas: end fijo por ventana, extender al segmento, silencio detectado
+Razón: clips que cortan frases a la mitad no son usables; el segmento de transcript marca el cierre natural de una idea
+Impacto: clips terminan en puntos naturales; +0.3s de buffer de cierre para evitar corte brusco
+Versión: v0.2
+
+## Decisión — 2026-04-16
+Decisión: Añadir derivada de RMS al score de audio_analysis (peso 50%)
+Opciones consideradas: RMS puro, RMS + derivada, onset detection de librosa
+Razón: RMS puro detecta ruido constante (música, teclado, ambiente) como picos; la derivada solo se activa en cambios bruscos que corresponden a reacciones reales
+Impacto: score = RMS_norm + 0.5 * diff_norm — reduce falsos positivos de fondo; el peso 50% es ajustable
+Versión: v0.2
+
+## Decisión — 2026-04-16
+Decisión: subtitle_engine como módulo opcional, no integrado en pipeline por defecto
+Opciones consideradas: integrar en exporter, módulo independiente activable, parámetro en main.py
+Razón: subtítulos requieren re-encode completo — costoso en tiempo; MVP no lo necesita; mejor mantenerlo separado hasta que el pipeline básico esté estable
+Impacto: burn_subtitles() existe y es funcional pero no se llama desde main.py; activable manualmente
+Versión: v0.2

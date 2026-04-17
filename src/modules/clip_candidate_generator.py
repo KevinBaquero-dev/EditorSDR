@@ -5,12 +5,31 @@ import os
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "output/candidates"
-WINDOW_BEFORE = 10.0       # segundos de contexto antes del pico
-WINDOW_AFTER = 15.0        # segundos después — más contexto que antes, las reacciones se extienden
 MIN_DURATION = 8.0
 MAX_DURATION = 60.0
 MAX_CANDIDATES = 25
-MERGE_OVERLAP_RATIO = 0.5  # merge si solapamiento > 50% del clip más corto
+MERGE_OVERLAP_RATIO = 0.5
+
+
+def _get_window(intensity: float) -> tuple[float, float]:
+    """Ventana dinámica según intensidad — más contexto para picos más fuertes."""
+    if intensity > 0.8:
+        return 15.0, 20.0
+    elif intensity > 0.6:
+        return 12.0, 18.0
+    return 10.0, 15.0
+
+
+def _extend_to_segment_end(peak_ts: float, end: float, transcript: list, max_end: float) -> float:
+    """Extiende el end hasta el cierre del segmento de transcript en curso."""
+    if not transcript:
+        return end
+    # Segmentos que ya empezaron antes del end actual y contienen el pico
+    overlapping = [s for s in transcript if s["start"] <= end and s["end"] > peak_ts]
+    if not overlapping:
+        return end
+    latest_end = max(s["end"] for s in overlapping)
+    return round(min(latest_end + 0.3, max_end), 3)  # 0.3s de buffer de cierre
 
 
 def _find_nearest_segment(peak_ts: float, transcript: list) -> dict | None:
@@ -40,7 +59,7 @@ def _merge_overlapping(candidates: list) -> list:
         if overlap / min(len_last, len_current) > MERGE_OVERLAP_RATIO:
             last["end"] = max(last["end"], current["end"])
             logger.debug(
-                f"Merged clips: [{last['start']:.1f}–{last['end']:.1f}] + "
+                f"Merged: [{last['start']:.1f}–{last['end']:.1f}] + "
                 f"[{current['start']:.1f}–{current['end']:.1f}]"
             )
         else:
@@ -74,12 +93,17 @@ def generate_clip_candidates(transcript_path: str, peaks_path: str) -> str:
     raw_candidates = []
     skipped = 0
 
-    # peaks.json viene ordenado por intensidad — iteramos de mayor a menor
     for peak in peaks:
         ts = peak["timestamp"]
+        intensity = peak.get("intensity", 0.5)
 
-        start = max(0.0, ts - WINDOW_BEFORE)
-        end = min(content_end, ts + WINDOW_AFTER)
+        before, after = _get_window(intensity)
+        start = max(0.0, ts - before)
+        end = min(content_end, ts + after)
+
+        # Extender hasta cierre de segmento de transcript
+        end = _extend_to_segment_end(ts, end, transcript, content_end)
+
         duration = end - start
 
         if duration < MIN_DURATION:
@@ -88,14 +112,15 @@ def generate_clip_candidates(transcript_path: str, peaks_path: str) -> str:
             continue
 
         if duration > MAX_DURATION:
-            end = start + MAX_DURATION
+            end = round(start + MAX_DURATION, 3)
 
         nearest = _find_nearest_segment(ts, transcript)
 
         raw_candidates.append({
             "start": round(start, 3),
-            "end": round(end, 3),
+            "end": end,
             "peak_timestamp": round(ts, 3),
+            "intensity": round(intensity, 4),
             "nearest_text": nearest["text"] if nearest else None,
         })
 
@@ -106,11 +131,10 @@ def generate_clip_candidates(transcript_path: str, peaks_path: str) -> str:
     candidates.sort(key=lambda c: c["start"])
     candidates = candidates[:MAX_CANDIDATES]
 
-    # Duración final — post-merge puede quedar alguno fuera de rango
     before_filter = len(candidates)
     candidates = [c for c in candidates if MIN_DURATION <= (c["end"] - c["start"]) <= MAX_DURATION]
     if len(candidates) < before_filter:
-        logger.warning(f"Filtered {before_filter - len(candidates)} candidates out of duration range after merge")
+        logger.warning(f"Filtered {before_filter - len(candidates)} post-merge out of range")
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(candidates, f, ensure_ascii=False, indent=2)

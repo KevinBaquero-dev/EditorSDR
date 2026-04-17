@@ -42,20 +42,26 @@ def analyze_audio(video_path: str) -> str:
 
     rms = librosa.feature.rms(y=y, frame_length=FRAME_LENGTH, hop_length=HOP_LENGTH)[0]
 
-    mean_energy = float(np.mean(rms))
-    std_energy = float(np.std(rms))
-    threshold = mean_energy + std_energy
-    logger.info(f"Energy — mean: {mean_energy:.6f} | std: {std_energy:.6f} | threshold: {threshold:.6f}")
+    # Derivada de energía: detecta cambios bruscos, ignora ruido sostenido (música, teclado, ambiente)
+    rms_diff = np.abs(np.diff(rms, prepend=rms[0]))
+    rms_norm = rms / (np.max(rms) + 1e-9)
+    diff_norm = rms_diff / (np.max(rms_diff) + 1e-9)
+    score = rms_norm + 0.5 * diff_norm  # peso derivada al 50% — ajustable
+
+    mean_score = float(np.mean(score))
+    std_score = float(np.std(score))
+    threshold = mean_score + std_score
+    logger.info(f"Score (RMS+deriv) — mean: {mean_score:.6f} | std: {std_score:.6f} | threshold: {threshold:.6f}")
 
     min_distance_frames = max(1, int(MIN_PEAK_DISTANCE_SEC * sr / HOP_LENGTH))
-    peak_indices, _ = find_peaks(rms, height=threshold, distance=min_distance_frames)
+    peak_indices, _ = find_peaks(score, height=threshold, distance=min_distance_frames)
 
     if len(peak_indices) == 0:
         logger.warning("No peaks detected above threshold — returning empty peaks list")
         peaks = []
     else:
         times = librosa.frames_to_time(peak_indices, sr=sr, hop_length=HOP_LENGTH)
-        intensities = rms[peak_indices]
+        intensities = score[peak_indices]
 
         max_intensity = float(np.max(intensities))
         norm_intensities = (intensities / max_intensity) if max_intensity > 0 else intensities
