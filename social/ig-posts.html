@@ -475,6 +475,90 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   STORY 07 — INTRODUCCIÓN / TEASER
+   Concepto: reveal del producto, cinematic, "Próximamente"
+   Imagen: setup oscuro, atmósfera de anticipación
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-07 { background: #000; }
+
+#story-07 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) contrast(1.15); opacity: 0.28;
+}
+
+#story-07 .gradient {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.55) 0%,
+    rgba(0,0,0,0.2)  35%,
+    rgba(0,0,0,0.5)  65%,
+    rgba(0,0,0,0.97) 100%);
+}
+
+/* Nombre del producto en vertical, muy grande y fantasma */
+#story-07 .ghost-product {
+  position: absolute; left: -22px; top: 0; bottom: 0;
+  display: flex; align-items: center; z-index: 2;
+}
+#story-07 .ghost-product span {
+  font-family: 'Bebas Neue', sans-serif; font-size: 190px; color: #fff;
+  opacity: 0.05; writing-mode: vertical-rl; transform: rotate(180deg);
+  letter-spacing: 10px; white-space: nowrap;
+}
+
+/* Bloque superior — identidad */
+#story-07 .top-block {
+  position: absolute; top: 72px; left: 44px; right: 44px; z-index: 3;
+}
+#story-07 .studio-tag {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3px;
+  color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 6px;
+}
+#story-07 .product-name {
+  font-family: 'Bebas Neue', sans-serif; font-size: 52px; line-height: 1;
+  color: #fff; letter-spacing: 4px;
+}
+
+/* Bloque central — reveal */
+#story-07 .center-block {
+  position: absolute; top: 50%; left: 44px; right: 44px;
+  transform: translateY(-50%); z-index: 3; text-align: center;
+}
+#story-07 .pronto {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 5px;
+  color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 20px;
+}
+#story-07 .reveal-headline {
+  font-family: 'Bebas Neue', sans-serif; font-size: 88px; line-height: 0.92;
+  color: #fff; letter-spacing: 3px;
+}
+#story-07 .reveal-headline .dim { color: rgba(255,255,255,0.22); display: block; }
+
+/* Bloque inferior — descripción + crédito */
+#story-07 .bottom-block {
+  position: absolute; bottom: 72px; left: 44px; right: 44px; z-index: 3;
+}
+#story-07 .tagline {
+  font-family: 'Inter', sans-serif; font-weight: 300; font-size: 13px;
+  line-height: 1.7; color: rgba(255,255,255,0.55);
+  border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;
+  margin-bottom: 24px;
+}
+#story-07 .coming-tag {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 4px;
+  color: rgba(255,255,255,0.3); text-transform: uppercase;
+}
+
+/* Crédito empresa */
+#story-07 .powered {
+  position: absolute; bottom: 28px; right: 44px; z-index: 4;
+  font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 2px;
+  color: rgba(255,255,255,0.28); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    POST 04 — VELOCIDAD / TIEMPO AHORRADO
    Concepto: "Antes 3 horas. Ahora 15 minutos."
    Imagen: laptop/coding setup oscuro
@@ -1069,6 +1153,39 @@ body {
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 07 — Introducción / Teaser del producto
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-07">
+  <div class="bg"></div>
+  <div class="gradient"></div>
+  <div class="ghost-product"><span>EDITORSDR</span></div>
+
+  <div class="top-block">
+    <div class="studio-tag">SHStudios presenta</div>
+    <div class="product-name">EditorSDR</div>
+  </div>
+
+  <div class="center-block">
+    <div class="pronto">Próximamente</div>
+    <h2 class="reveal-headline">
+      Tu stream.<br>
+      <span class="dim">Transformado.</span>
+    </h2>
+  </div>
+
+  <div class="bottom-block">
+    <p class="tagline">
+      De horas de grabación a clips listos para subir.<br>
+      Sin editar. Sin perder tiempo.<br>
+      Solo tu contenido, en su mejor versión.
+    </p>
+    <div class="coming-tag">Disponible pronto para el público</div>
+  </div>
+
+  <div class="powered">Powered by SHStudios</div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      POST 04 — Velocidad / Tiempo ahorrado
