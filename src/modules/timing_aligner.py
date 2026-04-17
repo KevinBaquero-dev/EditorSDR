@@ -24,8 +24,20 @@ _MIN_DURATION_S = 0.6      # duración mínima garantizada tras ajuste
 _MAX_DURATION_S = 4.0      # duración máxima — dividir si supera
 _GAP_MIN_S      = 0.15     # gap mínimo entre segmentos consecutivos
 
-# ── suavizado ─────────────────────────────────────────────────────────────────
-_LERP_T         = 0.7      # 0 = sin cambio, 1 = adoptar detección pura
+# ── suavizado dinámico ────────────────────────────────────────────────────────
+_MICRO_SEG_S    = 1.0      # segmentos por debajo de este umbral = micro
+_LERP_MICRO     = 0.4      # factor conservador para micro-segmentos
+# Resto: factor según magnitud del delta (ver _lerp_factor)
+
+# ── filtro de voz ─────────────────────────────────────────────────────────────
+_VOICE_LO_HZ    = 80       # frecuencia mínima de voz humana
+_VOICE_HI_HZ    = 3000     # frecuencia máxima relevante
+
+# ── split inteligente ─────────────────────────────────────────────────────────
+_SPLIT_MARGIN   = 0.25     # excluir primer/último 25% al buscar dip interno
+
+# ── gap semántico ─────────────────────────────────────────────────────────────
+_GAP_VOICE_K    = 1.5      # si energía en el gap > THRESH_FLOOR * k → voz continua
 
 
 # ─── audio helpers ────────────────────────────────────────────────────────────
@@ -58,8 +70,78 @@ def _compute_rms(audio: np.ndarray, sr: int) -> tuple:
     return np.array(frames, dtype=np.float32), np.array(times, dtype=np.float32)
 
 
+def _bandpass(audio: np.ndarray, sr: int) -> np.ndarray:
+    """
+    Filtro pasa-banda 80–3000Hz para aislar frecuencias de voz.
+    Reduce ruido de teclado, música y efectos de juego antes del RMS.
+    """
+    from scipy.signal import butter, sosfilt
+    nyq = sr / 2.0
+    sos = butter(4, [_VOICE_LO_HZ / nyq, _VOICE_HI_HZ / nyq], btype="band", output="sos")
+    return sosfilt(sos, audio).astype(np.float32)
+
+
 def _lerp(a: float, b: float, t: float) -> float:
     return round(a + (b - a) * t, 3)
+
+
+def _lerp_factor(delta: float, seg_dur: float) -> float:
+    """
+    Factor de suavizado dinámico.
+    Micro-segmentos (< _MICRO_SEG_S): conservador para evitar jitter visual.
+    Resto: inversamente proporcional al delta — más suave en cambios grandes.
+    """
+    if seg_dur < _MICRO_SEG_S:
+        return _LERP_MICRO
+    if delta < 0.2:
+        return 0.9   # ajuste pequeño → adoptar casi directo
+    if delta < 0.5:
+        return 0.7
+    return 0.5       # ajuste grande → más conservador
+
+
+def _find_energy_dip(rms: np.ndarray, frame_times: np.ndarray,
+                     seg_start: float, seg_end: float) -> float:
+    """
+    Busca el punto de menor energía en la zona central del segmento.
+    Excluye el primer/último _SPLIT_MARGIN para no cortar en los bordes.
+    Devuelve el tiempo del dip, o el punto medio como fallback.
+    """
+    span   = seg_end - seg_start
+    s      = seg_start + span * _SPLIT_MARGIN
+    e      = seg_end   - span * _SPLIT_MARGIN
+    mask   = (frame_times >= s) & (frame_times <= e)
+    if not np.any(mask):
+        return round((seg_start + seg_end) / 2, 3)
+    idx = int(np.argmin(rms[mask]))
+    return round(float(frame_times[mask][idx]), 3)
+
+
+def _is_real_pause(rms: np.ndarray, frame_times: np.ndarray,
+                   gap_start: float, gap_end: float) -> bool:
+    """
+    True si la energía en el gap es significativamente menor que la de los
+    segmentos adyacentes → pausa semántica real.
+    Comparación relativa (no threshold fijo) para adaptarse a cualquier nivel de audio.
+    """
+    gap_mask = (frame_times >= gap_start) & (frame_times <= gap_end)
+    if not np.any(gap_mask):
+        return False
+
+    gap_energy = float(np.mean(rms[gap_mask]))
+
+    # Contexto: 100ms antes y después del gap
+    ctx_mask = (
+        ((frame_times >= gap_start - 0.1) & (frame_times < gap_start)) |
+        ((frame_times >  gap_end)          & (frame_times <= gap_end + 0.1))
+    )
+    if not np.any(ctx_mask):
+        # Sin contexto disponible → comparar contra floor absoluto
+        return gap_energy < _THRESH_FLOOR * _GAP_VOICE_K
+
+    ctx_energy = float(np.mean(rms[ctx_mask]))
+    # Pausa real: energía del gap < 40% de la energía del contexto circundante
+    return gap_energy < ctx_energy * 0.4
 
 
 # ─── detección por segmento ───────────────────────────────────────────────────
@@ -137,9 +219,12 @@ def _align_segment(
             },
         }
 
-    # J: suavizado — no adoptar la detección de golpe
-    new_start = _lerp(old_start, det_start, _LERP_T)
-    new_end   = _lerp(old_end,   det_end,   _LERP_T)
+    # J: suavizado dinámico — factor según duración del segmento y magnitud del delta
+    seg_dur   = old_end - old_start
+    t_start   = _lerp_factor(abs(det_start - old_start), seg_dur)
+    t_end     = _lerp_factor(abs(det_end   - old_end),   seg_dur)
+    new_start = _lerp(old_start, det_start, t_start)
+    new_end   = _lerp(old_end,   det_end,   t_end)
 
     # G: duración mínima garantizada
     dur = new_end - new_start
@@ -167,32 +252,48 @@ def _align_segment(
 
 # ─── post-proceso ─────────────────────────────────────────────────────────────
 
-def _enforce_max_duration(segments: list, clip_dur: float) -> list:
-    """I: Divide por mitad cualquier segmento > _MAX_DURATION_S."""
+def _enforce_max_duration(
+    segments: list, clip_dur: float,
+    rms: np.ndarray, frame_times: np.ndarray,
+) -> list:
+    """
+    I: Divide cualquier segmento > _MAX_DURATION_S.
+    Split inteligente: busca el dip de menor energía en la zona central.
+    Solo usa el punto medio si no hay datos de RMS disponibles.
+    """
     result = []
     for seg in segments:
         if seg["end"] - seg["start"] <= _MAX_DURATION_S:
             result.append(seg)
         else:
-            mid   = round((seg["start"] + seg["end"]) / 2, 3)
-            words = seg.get("text", "").split()
-            half  = max(1, len(words) // 2)
-            a = {k: v for k, v in seg.items() if k != "_debug"}
-            b = {k: v for k, v in seg.items() if k != "_debug"}
-            a.update({"end": mid,        "text": " ".join(words[:half])})
-            b.update({"start": mid,      "text": " ".join(words[half:])})
+            split_t = _find_energy_dip(rms, frame_times, seg["start"], seg["end"])
+            words   = seg.get("text", "").split()
+            half    = max(1, len(words) // 2)
+            base    = {k: v for k, v in seg.items() if k != "_debug"}
+            a = {**base, "end":   split_t, "text": " ".join(words[:half])}
+            b = {**base, "start": split_t, "text": " ".join(words[half:])}
             result.extend([a, b])
     return result
 
 
-def _gap_cleaner(segments: list) -> list:
-    """H: Corrige gaps < _GAP_MIN_S y solapamientos entre segmentos consecutivos."""
+def _gap_cleaner(
+    segments: list,
+    rms: np.ndarray, frame_times: np.ndarray,
+) -> list:
+    """
+    H: Corrige gaps < _GAP_MIN_S entre segmentos consecutivos.
+    Gap semántico: si hay caída de energía en el hueco → pausa real → no tocar.
+    Solo ajusta si la energía es continua (no hay silencio real entre ellos).
+    """
     for i in range(len(segments) - 1):
         gap = segments[i + 1]["start"] - segments[i]["end"]
         if gap < _GAP_MIN_S:
+            if _is_real_pause(rms, frame_times, segments[i]["end"], segments[i + 1]["start"]):
+                # Pausa real — respetar el gap aunque sea pequeño
+                continue
             mid = round((segments[i]["end"] + segments[i + 1]["start"]) / 2, 3)
-            segments[i]["end"]          = mid
-            segments[i + 1]["start"]    = mid
+            segments[i]["end"]       = mid
+            segments[i + 1]["start"] = mid
     return segments
 
 
@@ -235,14 +336,22 @@ def align_subtitles(audio_path: str, subtitles_json_path: str) -> str:
 
     audio, sr  = _load_audio(audio_path)
     clip_dur   = len(audio) / sr
-    rms, times = _compute_rms(audio, sr)
+
+    # Filtrar banda de voz antes de calcular RMS — reduce ruido de teclado/juego
+    try:
+        audio_band = _bandpass(audio, sr)
+    except Exception as exc:
+        logger.debug("Bandpass filter failed (%s) — usando audio sin filtrar", exc)
+        audio_band = audio
+
+    rms, times = _compute_rms(audio_band, sr)
 
     # Alinear cada segmento
     aligned = [_align_segment(seg, rms, times, clip_dur) for seg in segments]
 
-    # Post-proceso
-    aligned = _enforce_max_duration(aligned, clip_dur)
-    aligned = _gap_cleaner(aligned)
+    # Post-proceso: split inteligente + gap semántico
+    aligned = _enforce_max_duration(aligned, clip_dur, rms, times)
+    aligned = _gap_cleaner(aligned, rms, times)
 
     # Separar debug
     debug_records = [seg.pop("_debug", {}) for seg in aligned]
