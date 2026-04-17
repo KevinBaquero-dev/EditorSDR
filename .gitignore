@@ -4,3 +4,8 @@ __pycache__/
 output/
 logs/
 *.pdf
+
+# Social — excluir todo excepto plantilla de estilo y script de exportación
+social/*
+!social/ig-posts.html
+!social/screenshot.js

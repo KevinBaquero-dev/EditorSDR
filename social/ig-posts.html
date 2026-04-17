@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EditorSDR — Instagram Posts</title>
+
+<!--
+  FUENTES
+  Bebas Neue  → headlines bold (estilo "EVOLVE")
+  Inter       → cuerpo / subtítulos
+  Space Mono  → acentos técnicos / datos
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<!--
+  IMÁGENES — Unsplash Source API
+  Formato: https://images.unsplash.com/photo-{ID}?w=1080&h=1080&fit=crop&auto=format&q=80
+  Licencia: Unsplash License — libre para uso comercial y editorial
+-->
+
+<style>
+/* ── RESET / CANVAS ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a1a1a;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  padding: 40px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── POST CONTAINER (540×540 CSS → 1080×1080 @2x) ──────────────────────── */
+.post {
+  width: 540px;
+  height: 540px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ── STORY CONTAINER (540×960 CSS → 1080×1920 @2x) ─────────────────────── */
+.story {
+  width: 540px;
+  height: 960px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 01 — "DE TU STREAM AL CLIP VIRAL"
+   Estilo: tipografía vertical bold, imagen B&W streamer/setup, overlay oscuro
+   Ref: "EVOLVE" — texto grande que domina el espacio
+   Imagen: setup gamer oscuro, luces RGB apagadas, ambiente concentrado
+   https://unsplash.com/photos/gVlkDCNXaRs
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-01 {
+  background-color: #000;
+}
+
+#post-01 .bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1080&h=1080&fit=crop&auto=format&q=80');
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(100%) contrast(1.1);
+  opacity: 0.55;
+}
+
+#post-01 .overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.05) 100%);
+}
+
+#post-01 .vertical-word {
+  position: absolute;
+  right: -8px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
+#post-01 .vertical-word span {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 198px;
+  line-height: 0.85;
+  color: #fff;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  letter-spacing: 6px;
+  opacity: 0.95;
+}
+
+#post-01 .content {
+  position: absolute;
+  left: 36px;
+  bottom: 48px;
+  z-index: 3;
+  max-width: 300px;
+}
+
+#post-01 .tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+#post-01 .headline {
+  font-family: 'Inter', sans-serif;
+  font-weight: 900;
+  font-size: 28px;
+  line-height: 1.1;
+  color: #fff;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+#post-01 .headline em {
+  font-style: normal;
+  color: #e0e0e0;
+  opacity: 0.65;
+}
+
+#post-01 .body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.3px;
+}
+
+#post-01 .brand {
+  position: absolute;
+  top: 28px;
+  left: 36px;
+  z-index: 3;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 02 — FEATURE: SUBTÍTULOS AUTOMÁTICOS
+   Estilo: grid de 3 columnas, foto dividida, bold headline centrado
+   Ref: "move." — paneles verticales con imagen fragmentada
+   Imagen: pantalla con waveform / timeline de edición / código
+   https://unsplash.com/photos/npxXWgQ33ZQ
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-02 {
+  background: #0a0a0a;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+}
+
+#post-02 .panels {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 4px 1fr 4px 1fr;
+  gap: 0;
+}
+
+#post-02 .panel {
+  background-image: url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1080&h=1080&fit=crop&auto=format&q=80');
+  background-size: 540px auto;
+  background-position: center;
+  filter: grayscale(100%) brightness(0.6);
+  overflow: hidden;
+}
+
+#post-02 .panel:nth-child(1) { background-position: 0% center; }
+#post-02 .panel:nth-child(3) { background-position: 50% center; }
+#post-02 .panel:nth-child(5) { background-position: 100% center; }
+
+#post-02 .divider {
+  background: #0a0a0a;
+}
+
+#post-02 .center-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+#post-02 .big-word {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 112px;
+  line-height: 0.9;
+  color: #fff;
+  letter-spacing: 4px;
+  text-align: center;
+  text-shadow: 0 0 60px rgba(0,0,0,0.8);
+}
+
+#post-02 .big-word .accent {
+  color: #fff;
+  opacity: 0.25;
+  font-size: 56px;
+  display: block;
+  letter-spacing: 16px;
+  margin-bottom: 4px;
+}
+
+#post-02 .meta {
+  position: absolute;
+  bottom: 28px;
+  right: 28px;
+  z-index: 3;
+  text-align: right;
+}
+
+#post-02 .meta p {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 10px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+  max-width: 160px;
+}
+
+#post-02 .corner-tag {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 3;
+}
+
+#post-02 .corner-tag p {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 03 — SOCIAL PROOF / NÚMERO IMPACTANTE
+   Estilo: fondo claro, tipografía negra enorme, foto como detalle
+   Ref: "Eyes" — fondo neutro claro, composición centrada, tipografía editorial
+   Imagen: streamer mirando pantalla, B&W, composición limpia
+   https://unsplash.com/photos/4V8JxijgZ_c
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-03 {
+  background: #f0ede8;
+  display: flex;
+  flex-direction: column;
+}
+
+#post-03 .photo-strip {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 60px 1fr 60px;
+  padding: 0 70px;
+  gap: 3px;
+  padding-top: 40px;
+}
+
+#post-03 .strip {
+  background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1080&h=400&fit=crop&auto=format&q=80');
+  background-size: cover;
+  filter: grayscale(100%) contrast(1.05);
+}
+
+#post-03 .strip:nth-child(1) { background-position: center 20%; }
+#post-03 .strip:nth-child(2) { background-position: center 50%; }
+#post-03 .strip:nth-child(3) { background-position: center 80%; }
+
+#post-03 .bottom-content {
+  padding: 20px 36px 28px;
+  text-align: center;
+}
+
+#post-03 .stat {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 76px;
+  line-height: 0.85;
+  color: #111;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+#post-03 .stat-sub {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+#post-03 .desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: #333;
+  max-width: 340px;
+  margin: 0 auto;
+  font-weight: 300;
+}
+
+#post-03 .brand-dark {
+  position: absolute;
+  bottom: 20px;
+  right: 28px;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 2.5px;
+  color: #aaa;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 01 — "CLIP AUTOMÁTICO EN 10 PASOS"
+   Formato 9:16, fondo negro, tipografía vertical + copy centrado
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-01 {
+  background: #000;
+}
+
+#story-01 .bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover;
+  background-position: center top;
+  filter: grayscale(100%) contrast(1.1);
+  opacity: 0.3;
+}
+
+#story-01 .gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.1) 0%,
+    rgba(0,0,0,0.05) 30%,
+    rgba(0,0,0,0.6) 65%,
+    rgba(0,0,0,0.95) 100%
+  );
+}
+
+#story-01 .big-vertical {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+#story-01 .big-vertical span {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 210px;
+  color: #fff;
+  opacity: 0.07;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: 8px;
+  white-space: nowrap;
+}
+
+#story-01 .story-content {
+  position: absolute;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  padding: 0 44px;
+  z-index: 3;
+}
+
+#story-01 .label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3.5px;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+#story-01 .story-headline {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 80px;
+  line-height: 0.92;
+  color: #fff;
+  letter-spacing: 2px;
+  margin-bottom: 24px;
+}
+
+#story-01 .story-headline .ghost {
+  color: rgba(255,255,255,0.2);
+  display: block;
+}
+
+#story-01 .steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+#story-01 .step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#story-01 .step-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  width: 18px;
+  flex-shrink: 0;
+}
+
+#story-01 .step-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.2px;
+}
+
+#story-01 .step-text strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+#story-01 .cta {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 20px;
+}
+
+#story-01 .brand-story {
+  position: absolute;
+  top: 56px;
+  left: 44px;
+  z-index: 3;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 04 — VELOCIDAD / TIEMPO AHORRADO
+   Concepto: "Antes 3 horas. Ahora 15 minutos."
+   Imagen: laptop/coding setup oscuro
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-04 { background: #050505; }
+
+#post-04 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1484417894907-623942c8ee29?w=1080&h=1080&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) contrast(1.1); opacity: 0.14;
+}
+
+#post-04 .ghost-v {
+  position: absolute; right: -4px; top: 0; bottom: 0;
+  display: flex; align-items: center; z-index: 1;
+}
+#post-04 .ghost-v span {
+  font-family: 'Bebas Neue', sans-serif; font-size: 172px; color: #fff;
+  opacity: 0.05; writing-mode: vertical-rl; transform: rotate(180deg);
+  letter-spacing: 8px; white-space: nowrap;
+}
+
+#post-04 .center {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+#post-04 .supertag {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 4px; color: rgba(255,255,255,0.28);
+  text-transform: uppercase; margin-bottom: 22px;
+}
+#post-04 .row { display: flex; align-items: baseline; gap: 20px; }
+
+#post-04 .t-before {
+  font-family: 'Bebas Neue', sans-serif; font-size: 84px;
+  color: rgba(255,255,255,0.18); letter-spacing: 2px;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.12);
+  text-decoration-thickness: 2px;
+}
+#post-04 .sep {
+  font-family: 'Inter', sans-serif; font-size: 26px;
+  color: rgba(255,255,255,0.22); font-weight: 200;
+}
+#post-04 .t-after {
+  font-family: 'Bebas Neue', sans-serif; font-size: 84px;
+  color: #fff; letter-spacing: 2px;
+}
+#post-04 .unit-row { display: flex; gap: 68px; margin-top: 8px; }
+#post-04 .unit-row span {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 3px; color: rgba(255,255,255,0.28); text-transform: uppercase;
+}
+
+#post-04 .bottom {
+  position: absolute; bottom: 32px; left: 36px; right: 36px;
+  z-index: 3; text-align: center;
+}
+#post-04 .bottom p {
+  font-family: 'Inter', sans-serif; font-weight: 300; font-size: 11px;
+  line-height: 1.65; color: rgba(255,255,255,0.38);
+}
+#post-04 .brand {
+  position: absolute; top: 28px; left: 36px; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.3); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 05 — MULTIPLATAFORMA
+   Concepto: "Reels. TikTok. Shorts. Un solo proceso."
+   Imagen: multi-pantalla de edición de video
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-05 { background: #080808; }
+
+#post-05 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1080&h=1080&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) brightness(0.5); opacity: 0.3;
+}
+#post-05 .overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.25) 100%);
+}
+
+#post-05 .content {
+  position: absolute; left: 38px; top: 0; bottom: 0; z-index: 2;
+  display: flex; flex-direction: column; justify-content: center;
+}
+#post-05 .pretag {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 4px; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; margin-bottom: 18px;
+}
+#post-05 .platform {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 74px; line-height: 1.05; letter-spacing: 2px;
+}
+#post-05 .platform.p1 { color: #fff; }
+#post-05 .platform.p2 { color: rgba(255,255,255,0.42); }
+#post-05 .platform.p3 { color: rgba(255,255,255,0.16); }
+#post-05 .dot-sep {
+  font-family: 'Inter', sans-serif; font-size: 10px;
+  color: rgba(255,255,255,0.18); margin: 1px 0;
+}
+#post-05 .tagline {
+  margin-top: 18px; font-family: 'Inter', sans-serif;
+  font-weight: 300; font-size: 11px; line-height: 1.65;
+  color: rgba(255,255,255,0.42); max-width: 220px;
+}
+#post-05 .brand {
+  position: absolute; top: 28px; left: 38px; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.28); text-transform: uppercase;
+}
+#post-05 .tag-right {
+  position: absolute; bottom: 28px; right: 28px; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.18);
+  text-transform: uppercase; text-align: right; line-height: 1.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POST 06 — CTA RETÓRICO
+   Concepto: "¿Todavía editando a mano?" — pregunta que interpela
+   Imagen: setup oscuro, atmósfera concentrada
+   ═══════════════════════════════════════════════════════════════════════════ */
+#post-06 { background: #040404; }
+
+#post-06 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1080&h=1080&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) contrast(1.3); opacity: 0.1;
+}
+
+#post-06 .q-mark {
+  position: absolute; right: 18px; top: 8px; z-index: 1;
+  font-family: 'Bebas Neue', sans-serif; font-size: 200px;
+  line-height: 1; color: rgba(255,255,255,0.04);
+}
+
+#post-06 .center {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 0 40px; text-align: center;
+}
+#post-06 .question {
+  font-family: 'Bebas Neue', sans-serif; font-size: 72px;
+  line-height: 1.0; color: #fff; letter-spacing: 2px; text-align: center;
+}
+#post-06 .question .dim { color: rgba(255,255,255,0.3); display: block; }
+
+#post-06 .divider-line {
+  width: 40px; height: 1px; background: rgba(255,255,255,0.2); margin: 22px auto;
+}
+#post-06 .answer {
+  font-family: 'Inter', sans-serif; font-weight: 300; font-size: 12px;
+  line-height: 1.65; color: rgba(255,255,255,0.45); text-align: center;
+}
+#post-06 .cta-tag {
+  position: absolute; bottom: 32px; left: 0; right: 0;
+  text-align: center; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  letter-spacing: 3px; color: rgba(255,255,255,0.22); text-transform: uppercase;
+}
+#post-06 .brand {
+  position: absolute; top: 28px; left: 36px; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.25); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 02 — ANTES vs DESPUÉS
+   Split horizontal: workflow sin EditorSDR / con EditorSDR
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-02 { background: #050505; }
+
+#story-02 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%); opacity: 0.12;
+}
+
+#story-02 .divider-h {
+  position: absolute; top: 50%; left: 0; right: 0; height: 1px;
+  background: rgba(255,255,255,0.15); z-index: 3;
+}
+
+#story-02 .half-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 50%;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 0 44px 36px; z-index: 2;
+}
+#story-02 .half-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 50%;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 36px 44px 0; z-index: 2;
+}
+
+#story-02 .section-tag {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px;
+}
+#story-02 .section-tag.before { color: rgba(255,255,255,0.28); }
+#story-02 .section-tag.after  { color: rgba(255,255,255,0.65); }
+
+#story-02 .section-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 52px;
+  line-height: 0.95; letter-spacing: 2px; margin-bottom: 14px;
+}
+#story-02 .section-title.before { color: rgba(255,255,255,0.22); }
+#story-02 .section-title.after  { color: #fff; }
+
+#story-02 .item-list { display: flex; flex-direction: column; gap: 8px; }
+#story-02 .item {
+  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.4;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+#story-02 .item.before-item { color: rgba(255,255,255,0.3); }
+#story-02 .item.after-item  { color: rgba(255,255,255,0.72); }
+#story-02 .item-icon { font-size: 10px; flex-shrink: 0; margin-top: 1px; }
+
+#story-02 .brand-s2 {
+  position: absolute; top: 56px; left: 44px; z-index: 4;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.3); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 03 — SCORING DE MOMENTOS
+   Feature técnico: cómo puntúa los candidatos
+   Visual: waveform en CSS + barras de criterios
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-03 { background: #020202; }
+
+#story-03 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) brightness(0.4); opacity: 0.2;
+}
+#story-03 .gradient {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.1) 30%,
+    rgba(0,0,0,0.75) 60%, rgba(0,0,0,0.98) 100%);
+}
+
+#story-03 .waveform {
+  position: absolute; top: 180px; left: 0; right: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 4px; height: 130px; z-index: 2; padding: 0 44px;
+}
+#story-03 .bar {
+  background: rgba(255,255,255,0.1); flex: 1; max-width: 8px;
+  border-radius: 2px 2px 0 0;
+}
+#story-03 .bar.peak { background: rgba(255,255,255,0.75); }
+#story-03 .bar.mid  { background: rgba(255,255,255,0.28); }
+
+#story-03 .content {
+  position: absolute; bottom: 88px; left: 44px; right: 44px; z-index: 3;
+}
+#story-03 .label {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3.5px;
+  color: rgba(255,255,255,0.38); text-transform: uppercase; margin-bottom: 14px;
+}
+#story-03 .headline {
+  font-family: 'Bebas Neue', sans-serif; font-size: 76px; line-height: 0.93;
+  color: #fff; letter-spacing: 2px; margin-bottom: 26px;
+}
+#story-03 .headline .ghost { color: rgba(255,255,255,0.2); display: block; }
+
+#story-03 .criteria { display: flex; flex-direction: column; gap: 13px; margin-bottom: 26px; }
+#story-03 .criterion { display: flex; align-items: center; gap: 12px; }
+#story-03 .c-label {
+  font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 2px;
+  color: rgba(255,255,255,0.32); text-transform: uppercase;
+  width: 76px; flex-shrink: 0;
+}
+#story-03 .c-bar-wrap {
+  flex: 1; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px;
+}
+#story-03 .c-bar { height: 100%; background: rgba(255,255,255,0.55); border-radius: 2px; }
+#story-03 .c-value {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: rgba(255,255,255,0.38); width: 28px; text-align: right; flex-shrink: 0;
+}
+
+#story-03 .bottom-tag {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 300;
+  color: rgba(255,255,255,0.4); line-height: 1.6;
+  border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;
+}
+#story-03 .brand-s3 {
+  position: absolute; top: 56px; left: 44px; z-index: 4;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.3); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 04 — TRES DATOS IMPACTANTES
+   Layout en tres bloques verticales, cada uno con un stat
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-04 { background: #030303; }
+
+#story-04 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center;
+  filter: grayscale(100%) contrast(1.2); opacity: 0.11;
+}
+
+#story-04 .blocks {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column;
+}
+#story-04 .block {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; padding: 0 44px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+#story-04 .block:last-child { border-bottom: none; }
+
+#story-04 .b-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 104px;
+  line-height: 0.9; color: #fff; letter-spacing: 2px;
+}
+#story-04 .b-sub {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 4px; color: rgba(255,255,255,0.32);
+  text-transform: uppercase; margin-top: 8px;
+}
+#story-04 .b-desc {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 300;
+  color: rgba(255,255,255,0.38); margin-top: 6px; line-height: 1.5;
+}
+
+#story-04 .brand-s4 {
+  position: absolute; top: 48px; right: 44px; z-index: 4;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.22); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 05 — FAQ
+   3 preguntas frecuentes, estilo Q&A minimalista
+   Ghost "FAQ" vertical como textura
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-05 { background: #080808; }
+
+#story-05 .ghost-faq {
+  position: absolute; left: -18px; top: 0; bottom: 0;
+  display: flex; align-items: center; z-index: 1;
+}
+#story-05 .ghost-faq span {
+  font-family: 'Bebas Neue', sans-serif; font-size: 200px; color: #fff;
+  opacity: 0.04; writing-mode: vertical-rl; transform: rotate(180deg);
+  letter-spacing: 10px; white-space: nowrap;
+}
+
+#story-05 .content {
+  position: absolute; top: 120px; left: 44px; right: 44px; z-index: 2;
+}
+#story-05 .pretag {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 4px;
+  color: rgba(255,255,255,0.28); text-transform: uppercase; margin-bottom: 36px;
+}
+#story-05 .qas { display: flex; flex-direction: column; }
+#story-05 .qa-item { padding: 28px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+#story-05 .qa-item:first-child { border-top: none; padding-top: 0; }
+
+#story-05 .question-text {
+  font-family: 'Inter', sans-serif; font-weight: 700; font-size: 14px;
+  color: rgba(255,255,255,0.88); line-height: 1.4; margin-bottom: 10px;
+}
+#story-05 .answer-text {
+  font-family: 'Inter', sans-serif; font-weight: 300; font-size: 12px;
+  color: rgba(255,255,255,0.42); line-height: 1.65;
+}
+
+#story-05 .brand-s5 {
+  position: absolute; top: 56px; left: 44px; z-index: 3;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.25); text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORY 06 — CTA FINAL
+   "Empieza hoy" — llamada a la acción con 3 pasos simples
+   Imagen impactante de fondo
+   ═══════════════════════════════════════════════════════════════════════════ */
+#story-06 { background: #000; }
+
+#story-06 .bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1080&h=1920&fit=crop&auto=format&q=80');
+  background-size: cover; background-position: center top;
+  filter: grayscale(100%) contrast(1.1); opacity: 0.34;
+}
+#story-06 .gradient {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.1) 28%,
+    rgba(0,0,0,0.65) 58%, rgba(0,0,0,0.97) 100%);
+}
+
+#story-06 .big-bg-text {
+  position: absolute; right: -10px; top: 80px; z-index: 2;
+}
+#story-06 .big-bg-text span {
+  font-family: 'Bebas Neue', sans-serif; font-size: 220px;
+  color: #fff; opacity: 0.05; writing-mode: vertical-rl;
+  transform: rotate(180deg); letter-spacing: 10px; white-space: nowrap;
+}
+
+#story-06 .content {
+  position: absolute; bottom: 80px; left: 44px; right: 44px; z-index: 3;
+}
+#story-06 .label {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3.5px;
+  color: rgba(255,255,255,0.38); text-transform: uppercase; margin-bottom: 16px;
+}
+#story-06 .cta-headline {
+  font-family: 'Bebas Neue', sans-serif; font-size: 96px; line-height: 0.9;
+  color: #fff; letter-spacing: 3px; margin-bottom: 34px;
+}
+#story-06 .cta-headline .sub-h {
+  color: rgba(255,255,255,0.25); display: block; font-size: 60px;
+}
+
+#story-06 .steps-simple { display: flex; flex-direction: column; gap: 14px; margin-bottom: 34px; }
+#story-06 .s-step { display: flex; align-items: center; gap: 16px; }
+#story-06 .s-num {
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  color: rgba(255,255,255,0.28); width: 22px; flex-shrink: 0;
+}
+#story-06 .s-text {
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400;
+  color: rgba(255,255,255,0.78);
+}
+#story-06 .s-text strong { color: #fff; font-weight: 700; }
+#story-06 .s-code {
+  font-family: 'Space Mono', monospace; font-size: 11px;
+  color: rgba(255,255,255,0.55);
+}
+
+#story-06 .final-cta {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 3px;
+  color: rgba(255,255,255,0.48); text-transform: uppercase;
+  border-top: 1px solid rgba(255,255,255,0.12); padding-top: 22px;
+}
+#story-06 .brand-s6 {
+  position: absolute; top: 56px; left: 44px; z-index: 4;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.28); text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 01 — Concepto / Identidad
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-01">
+  <div class="bg"></div>
+  <div class="overlay"></div>
+
+  <div class="brand">EditorSDR</div>
+
+  <div class="vertical-word">
+    <span>CLIP</span>
+  </div>
+
+  <div class="content">
+    <div class="tag">Automatización · IA · Contenido</div>
+    <h1 class="headline">
+      De tu stream<br>
+      al clip<br>
+      <em>viral.</em>
+    </h1>
+    <p class="body">
+      Tu stream tiene los mejores momentos.<br>
+      Nosotros los encontramos,<br>
+      los cortamos y los subtitulamos.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 02 — Feature: Subtítulos automáticos
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-02">
+  <div class="panels">
+    <div class="panel"></div>
+    <div class="divider"></div>
+    <div class="panel"></div>
+    <div class="divider"></div>
+    <div class="panel"></div>
+  </div>
+
+  <div class="center-content">
+    <div class="big-word">
+      <span class="accent">AUTO</span>
+      SUBS
+    </div>
+  </div>
+
+  <div class="corner-tag">
+    <p>Feature</p>
+    <p>v0.5</p>
+  </div>
+
+  <div class="meta">
+    <p>subtítulos con<br>highlight contextual.<br>automático.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 03 — Dato / Social Proof
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-03">
+  <div class="photo-strip">
+    <div class="strip"></div>
+    <div class="strip"></div>
+    <div class="strip"></div>
+  </div>
+
+  <div class="bottom-content">
+    <div class="stat">10×</div>
+    <div class="stat-sub">más clips por semana</div>
+    <p class="desc">
+      Sin editar a mano. Sin perder horas.<br>
+      Tu pipeline procesa el stream completo<br>y extrae lo que realmente vale.
+    </p>
+  </div>
+
+  <div class="brand-dark">EditorSDR</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 01 — Proceso / How it works
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-01">
+  <div class="bg"></div>
+  <div class="gradient"></div>
+
+  <div class="big-vertical"><span>PIPELINE</span></div>
+
+  <div class="brand-story">EditorSDR</div>
+
+  <div class="story-content">
+    <div class="label">Así funciona</div>
+    <h2 class="story-headline">
+      Tu stream.<br>
+      <span class="ghost">Procesado.</span>
+    </h2>
+
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">01</span>
+        <span class="step-text"><strong>Sube</strong> el VOD o apunta al archivo local</span>
+      </div>
+      <div class="step">
+        <span class="step-num">02</span>
+        <span class="step-text"><strong>Análisis de audio</strong> — detecta picos de energía</span>
+      </div>
+      <div class="step">
+        <span class="step-num">03</span>
+        <span class="step-text"><strong>Candidatos</strong> — ventana dinámica por intensidad</span>
+      </div>
+      <div class="step">
+        <span class="step-num">04</span>
+        <span class="step-text"><strong>Scoring</strong> — intensity · hook · densidad · duración</span>
+      </div>
+      <div class="step">
+        <span class="step-num">05</span>
+        <span class="step-text"><strong>Subtítulos</strong> con highlight contextual automático</span>
+      </div>
+      <div class="step">
+        <span class="step-num">06</span>
+        <span class="step-text"><strong>Render final</strong> — clips listos para subir</span>
+      </div>
+    </div>
+
+    <div class="cta">↓ Sin editar. Sin perder tiempo.</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 04 — Velocidad / Tiempo ahorrado
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-04">
+  <div class="bg"></div>
+  <div class="ghost-v"><span>TIEMPO</span></div>
+  <div class="brand">EditorSDR</div>
+
+  <div class="center">
+    <div class="supertag">Tiempo de edición por clip</div>
+    <div class="row">
+      <span class="t-before">3H</span>
+      <span class="sep">→</span>
+      <span class="t-after">15MIN</span>
+    </div>
+    <div class="unit-row">
+      <span>antes</span>
+      <span>ahora</span>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <p>El mismo clip. La misma calidad.<br>Sin tocar la línea de tiempo.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 05 — Multiplataforma
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-05">
+  <div class="bg"></div>
+  <div class="overlay"></div>
+  <div class="brand">EditorSDR</div>
+
+  <div class="content">
+    <div class="pretag">Un proceso. Todos los formatos.</div>
+    <div class="platform p1">Reels</div>
+    <div class="dot-sep">·</div>
+    <div class="platform p2">TikTok</div>
+    <div class="dot-sep">·</div>
+    <div class="platform p3">Shorts</div>
+    <p class="tagline">
+      Tu stream procesado<br>
+      en todos los formatos.<br>
+      Automático. Una sola vez.
+    </p>
+  </div>
+
+  <div class="tag-right">
+    <p>clip<br>multiplataforma</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     POST 06 — CTA retórico
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="post" id="post-06">
+  <div class="bg"></div>
+  <div class="brand">EditorSDR</div>
+  <span class="q-mark">?</span>
+
+  <div class="center">
+    <div class="question">
+      ¿Todavía<br>
+      <span class="dim">editando</span><br>
+      a mano?
+    </div>
+    <div class="divider-line"></div>
+    <p class="answer">
+      Hay una forma mejor.<br>
+      Tu pipeline lo hace por ti.
+    </p>
+  </div>
+
+  <div class="cta-tag">EditorSDR — automatización de clips</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 02 — Antes vs Después
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-02">
+  <div class="bg"></div>
+  <div class="divider-h"></div>
+  <div class="brand-s2">EditorSDR</div>
+
+  <div class="half-top">
+    <div class="section-tag before">Sin EditorSDR</div>
+    <div class="section-title before">El camino<br>largo.</div>
+    <div class="item-list">
+      <div class="item before-item"><span class="item-icon">✕</span><span>Revisar el VOD completo a mano</span></div>
+      <div class="item before-item"><span class="item-icon">✕</span><span>Elegir momentos uno por uno</span></div>
+      <div class="item before-item"><span class="item-icon">✕</span><span>Cortar, exportar y subtitular por separado</span></div>
+      <div class="item before-item"><span class="item-icon">✕</span><span>3–5 horas por sesión de stream</span></div>
+    </div>
+  </div>
+
+  <div class="half-bottom">
+    <div class="section-tag after">Con EditorSDR</div>
+    <div class="section-title after">Un solo<br>comando.</div>
+    <div class="item-list">
+      <div class="item after-item"><span class="item-icon">→</span><span>Apunta al archivo, ejecuta el pipeline</span></div>
+      <div class="item after-item"><span class="item-icon">→</span><span>Detección, scoring y subtítulos automáticos</span></div>
+      <div class="item after-item"><span class="item-icon">→</span><span>Clips listos en menos de 20 minutos</span></div>
+      <div class="item after-item"><span class="item-icon">→</span><span>Sin abrir un editor de video</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 03 — Scoring de momentos / Feature técnico
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-03">
+  <div class="bg"></div>
+  <div class="gradient"></div>
+  <div class="brand-s3">EditorSDR</div>
+
+  <div class="waveform">
+    <div class="bar" style="height:18%"></div>
+    <div class="bar" style="height:30%"></div>
+    <div class="bar" style="height:22%"></div>
+    <div class="bar mid" style="height:52%"></div>
+    <div class="bar mid" style="height:58%"></div>
+    <div class="bar" style="height:28%"></div>
+    <div class="bar peak" style="height:92%"></div>
+    <div class="bar peak" style="height:98%"></div>
+    <div class="bar peak" style="height:86%"></div>
+    <div class="bar mid" style="height:64%"></div>
+    <div class="bar" style="height:38%"></div>
+    <div class="bar" style="height:20%"></div>
+    <div class="bar" style="height:26%"></div>
+    <div class="bar mid" style="height:48%"></div>
+    <div class="bar" style="height:32%"></div>
+    <div class="bar" style="height:16%"></div>
+    <div class="bar peak" style="height:90%"></div>
+    <div class="bar peak" style="height:94%"></div>
+    <div class="bar mid" style="height:68%"></div>
+    <div class="bar mid" style="height:56%"></div>
+    <div class="bar" style="height:34%"></div>
+    <div class="bar" style="height:20%"></div>
+    <div class="bar" style="height:14%"></div>
+  </div>
+
+  <div class="content">
+    <div class="label">Detección de momentos</div>
+    <h2 class="headline">
+      No todos<br>
+      los segundos<br>
+      <span class="ghost">son iguales.</span>
+    </h2>
+
+    <div class="criteria">
+      <div class="criterion">
+        <span class="c-label">Intensidad</span>
+        <div class="c-bar-wrap"><div class="c-bar" style="width:88%"></div></div>
+        <span class="c-value">×0.4</span>
+      </div>
+      <div class="criterion">
+        <span class="c-label">Hook</span>
+        <div class="c-bar-wrap"><div class="c-bar" style="width:72%"></div></div>
+        <span class="c-value">×0.3</span>
+      </div>
+      <div class="criterion">
+        <span class="c-label">Densidad</span>
+        <div class="c-bar-wrap"><div class="c-bar" style="width:55%"></div></div>
+        <span class="c-value">×0.2</span>
+      </div>
+      <div class="criterion">
+        <span class="c-label">Duración</span>
+        <div class="c-bar-wrap"><div class="c-bar" style="width:40%"></div></div>
+        <span class="c-value">×0.1</span>
+      </div>
+    </div>
+
+    <p class="bottom-tag">
+      Cada candidato recibe un score compuesto.<br>
+      Solo los mejores momentos pasan el corte.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 04 — Tres datos impactantes
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-04">
+  <div class="bg"></div>
+  <div class="brand-s4">EditorSDR</div>
+
+  <div class="blocks">
+    <div class="block">
+      <div class="b-num">10×</div>
+      <div class="b-sub">más contenido</div>
+      <div class="b-desc">El mismo stream produce diez veces más clips que editando a mano.</div>
+    </div>
+    <div class="block">
+      <div class="b-num">&lt;20'</div>
+      <div class="b-sub">tiempo de proceso</div>
+      <div class="b-desc">De VOD raw a clips subtitulados en menos de veinte minutos.</div>
+    </div>
+    <div class="block">
+      <div class="b-num">100%</div>
+      <div class="b-sub">automático</div>
+      <div class="b-desc">Sin intervención manual. Sin editor de video. Sin tiempo perdido.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 05 — FAQ
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-05">
+  <div class="ghost-faq"><span>FAQ</span></div>
+  <div class="brand-s5">EditorSDR</div>
+
+  <div class="content">
+    <div class="pretag">Preguntas frecuentes</div>
+    <div class="qas">
+      <div class="qa-item">
+        <div class="question-text">¿Necesito saber editar video?</div>
+        <div class="answer-text">No. El pipeline es completamente automático. Solo necesitas apuntar al archivo de tu stream y ejecutar el comando.</div>
+      </div>
+      <div class="qa-item">
+        <div class="question-text">¿En qué formatos entrega los clips?</div>
+        <div class="answer-text">MP4 listo para Reels, TikTok y Shorts. Resolución y proporción configurables por plataforma.</div>
+      </div>
+      <div class="qa-item">
+        <div class="question-text">¿Funciona con cualquier stream?</div>
+        <div class="answer-text">Sí. Compatible con VODs de Twitch, YouTube Live y archivos locales de OBS o cualquier grabador.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     STORY 06 — CTA Final
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="story" id="story-06">
+  <div class="bg"></div>
+  <div class="gradient"></div>
+  <div class="big-bg-text"><span>START</span></div>
+  <div class="brand-s6">EditorSDR</div>
+
+  <div class="content">
+    <div class="label">Listo para empezar</div>
+    <h2 class="cta-headline">
+      Empieza<br>
+      <span class="sub-h">hoy mismo.</span>
+    </h2>
+
+    <div class="steps-simple">
+      <div class="s-step">
+        <span class="s-num">01</span>
+        <span class="s-text"><strong>Descarga</strong> EditorSDR desde GitHub</span>
+      </div>
+      <div class="s-step">
+        <span class="s-num">02</span>
+        <span class="s-text"><strong>Apunta</strong> al VOD de tu último stream</span>
+      </div>
+      <div class="s-step">
+        <span class="s-num">03</span>
+        <span class="s-text"><strong>Ejecuta</strong> <span class="s-code">python main.py</span></span>
+      </div>
+    </div>
+
+    <div class="final-cta">Clips listos. Sin editar nada más. →</div>
+  </div>
+</div>
+
+</body>
+</html>

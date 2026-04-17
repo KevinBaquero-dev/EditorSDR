@@ -6,6 +6,13 @@ Fase actual: v0.4 — Producción vertical + subtítulos editables
 Módulos activos: todos (13 módulos, pipeline de 10–12 pasos)
 Bloqueos: Ninguno
 
+## Completado — Social Media
+- [x] Plantilla HTML de posts e historias para Instagram (`social/ig-posts.html`)
+- [x] 6 posts (1080×1080): identidad, AUTO SUBS, social proof, velocidad, multiplataforma, CTA
+- [x] 6 historias (1080×1920): pipeline, antes/después, scoring, tres datos, FAQ, CTA final
+- [x] Script de exportación PNG con Puppeteer @2x (`social/screenshot.js`)
+- [x] `.gitignore` actualizado — solo se versiona la plantilla y el script
+
 ## Completado
 - [x] Ventana dinámica en clip_candidate_generator (intensidad → ventana variable)
 - [x] Extender finales de clip al cierre del segmento de transcript

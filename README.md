@@ -197,6 +197,34 @@ Los parámetros más útiles están en los módulos:
 
 ---
 
+## Social Media
+
+La carpeta `social/` contiene las plantillas de contenido para Instagram:
+
+| Archivo | Descripción |
+|---------|-------------|
+| `ig-posts.html` | Plantilla HTML con los diseños de posts (1080×1080) e historias (1080×1920) |
+| `screenshot.js` | Script Puppeteer — exporta cada pieza a PNG a resolución @2x |
+
+### Exportar
+
+```bash
+# Instalar dependencias (solo la primera vez)
+cd social && npm install
+
+# Exportar todas las piezas
+node screenshot.js
+
+# Exportar una sola pieza
+node screenshot.js post-01
+```
+
+Los archivos se generan en `social/exports/`. La carpeta `exports/` y `node_modules/` están en `.gitignore` — solo se versionan las plantillas fuente.
+
+**Piezas disponibles:** post-01 al post-06 (1080×1080), story-01 al story-06 (1080×1920).
+
+---
+
 ## Créditos
 
 Desarrollado por **SH Studios**.
