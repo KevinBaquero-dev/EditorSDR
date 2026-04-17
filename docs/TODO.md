@@ -2,25 +2,38 @@
 > Dueño: SH Studios — aprueba Director
 
 ## Estado del proyecto
-Fase actual: v0.3 — Scoring Engine
-Módulo en desarrollo: scoring_engine
+Fase actual: v0.4 — Producción vertical + subtítulos editables
+Módulos activos: todos (13 módulos, pipeline de 10–12 pasos)
 Bloqueos: Ninguno
 
-## Critico
-- [x] Ajustar ventana dinámica en clip_candidate_generator (intensidad → ventana variable)
+## Completado
+- [x] Ventana dinámica en clip_candidate_generator (intensidad → ventana variable)
 - [x] Extender finales de clip al cierre del segmento de transcript
-- [x] Scoring engine — score compuesto por features de audio, transcript y duración
+- [x] Filtrar ruido constante en audio_analysis con derivada de energía
+- [x] QG v0.2 vs v0.1 — mejora confirmada (spread 0.368 en scoring)
+- [x] Scoring engine — score compuesto (intensity, text_density, hook_strength, duration_score)
+- [x] Hook fallback con energy proxy para clips sin texto inicial
+- [x] Text density con saturación (cap 15 chars/s)
+- [x] Duration plateau 20–45s
+- [x] Bonus phrase_complete (+0.07)
+- [x] Selector con top 15 + score ≥ 0.65 + diversidad temporal
+- [x] Start refiner — phrase_align y silence_skip con protección de buildup por intensidad
+- [x] Formato vertical 9:16 (crop centrado + scale 1080x1920)
+- [x] Crop offset configurable (center | left | right + px)
+- [x] subtitle_builder — JSON+SRT editables, chunking inteligente, highlight ! ?, offset -0.2s
+- [x] subtitle_renderer — quema SRT (editado o auto) sobre clips verticales
+- [x] Flag --subtitles y --review en main.py
+- [x] Protección de edición manual (subtitles_edited en meta)
 
 ## Importante
-- [x] Filtrar ruido constante en audio_analysis con derivada de energía
-- [x] Revisar clips v0.2 vs v0.1 — QG completado, mejora confirmada
 - Agregar vod_url y vod_title a metadata.json en exporter
-- Validar ranking de scoring con VODs adicionales — confirmar que top clips son realmente los mejores
+- Validar ranking de scoring con 2–3 VODs adicionales
 - Ajustar pesos de scoring con feedback real de clips
+- Mover scoring antes de clipper (refactor de pipeline — cortar solo top N)
 
 ## Futuro
-- Subtítulos opcionales (subtitle_engine.py — módulo separado, activable por config)
-- Formato vertical (9:16)
 - Feedback humano → ajuste de pesos en scoring_engine
 - Modo verbose/quiet en main.py via argumento
 - Parámetros de ventana configurables sin tocar el código
+- Zoom inteligente / tracking (post-MVP)
+- Auto-upload
