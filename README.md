@@ -137,14 +137,15 @@ output/
 
 ## Subtítulos — flujo editable
 
-Los subtítulos siguen un flujo de dos etapas para permitir edición humana antes del render:
+Los subtítulos pasan por tres etapas entre la transcripción y el render:
 
 ```
-transcript → subtitle_builder → clip_NNN.json   ← editable en cualquier editor
-                              → clip_NNN.srt    ← formato render
-                              → clip_NNN_meta   ← protección: subtitles_edited=true
-                                                    evita sobreescribir ediciones
-→ subtitle_renderer           → subtitled_NNN.mp4
+transcript → subtitle_builder  → clip_NNN.json   ← editable en cualquier editor
+                               → clip_NNN.srt    ← formato render
+                               → clip_NNN_meta   ← protección: subtitles_edited=true
+           → timing_aligner    → ajusta timestamps al audio real (RMS + bandpass)
+                                  respeta subtitles_edited=true — no sobreescribe
+→ subtitle_renderer            → subtitled_NNN.mp4
 ```
 
 Para regenerar el SRT después de editar el JSON:
@@ -173,6 +174,11 @@ Los parámetros más útiles están en los módulos:
 | `CAPITALIZE` | `subtitle_builder.py` | True | Capitalizar inicio de cada chunk |
 | `FontSize` | `subtitle_engine.py` | 18 | Tamaño de fuente (1080×1920) |
 | `MarginV` | `subtitle_engine.py` | 60 | Distancia en px desde el borde inferior |
+| `MODEL_SIZE` | `transcription.py` | medium | Modelo Whisper (small/medium/large-v3) |
+| `WHISPER_INITIAL_PROMPT` | `transcription.py` | — | Contexto para mejorar precisión en español |
+| `_MAX_TRIM_S` | `timing_aligner.py` | 1.0s | Desplazamiento máximo permitido por segmento |
+| `_MICRO_SEG_S` | `timing_aligner.py` | 1.0s | Umbral de micro-segmento (lerp conservador) |
+| `_VOICE_LO_HZ` / `_VOICE_HI_HZ` | `timing_aligner.py` | 80 / 3000 | Banda de voz para el filtro RMS |
 
 ---
 
@@ -192,6 +198,9 @@ Los parámetros más útiles están en los módulos:
 | Subtítulos editables (JSON → SRT → render) | ✅ Listo v0.4.2 |
 | Highlight keywords (! ?) | ✅ Listo |
 | Ajuste de estilo de subtítulos (size, posición) | ✅ Listo |
+| Silence trim en subtitle_builder (RMS por segmento) | ✅ Listo v0.5 |
+| Transcripción medium + language/prompt explícito | ✅ Listo v0.5 |
+| Timing aligner (bandpass + lerp dinámico + gap semántico) | ✅ Listo v0.5 |
 | Feedback humano → ajuste de pesos | 🔲 Pendiente |
 | Scoring antes de clipper (refactor) | 🔲 Pendiente |
 | Auto-upload | 🔲 Futuro |
