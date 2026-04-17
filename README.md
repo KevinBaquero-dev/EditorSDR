@@ -128,6 +128,7 @@ output/
 | `start_refiner.py` | Refina inicios: phrase_align o silence_skip según intensidad |
 | `vertical_formatter.py` | Convierte a 9:16 — crop configurable (center/left/right + offset px) |
 | `subtitle_builder.py` | Genera JSON+SRT editables con chunking, highlight y offset de timing |
+| `timing_aligner.py` | Alinea timestamps con voz real: RMS dinámico, lerp, gap cleaner, fallback |
 | `subtitle_renderer.py` | Quema SRT (editado o auto) sobre clips verticales |
 | `subtitle_engine.py` | Burn directo sin etapa editable (utilidad standalone) |
 | `exporter.py` | Organiza salida final con metadata |

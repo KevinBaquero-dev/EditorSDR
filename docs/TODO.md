@@ -6,6 +6,18 @@ Fase actual: v0.4 — Producción vertical + subtítulos editables
 Módulos activos: todos (13 módulos, pipeline de 10–12 pasos)
 Bloqueos: Ninguno
 
+## Completado — Timing Aligner (v0.5)
+- [x] timing_aligner.py — alineación de timestamps con voz real (RMS dinámico)
+- [x] threshold dinámico por segmento: mean + 0.5 * std (no valor fijo)
+- [x] padding de búsqueda ±0.5s alrededor de cada segmento
+- [x] suavizado lerp(0.7) — evita saltos bruscos en timestamps
+- [x] límites de seguridad: max shift 1.0s, min duración 0.6s, max duración 4.0s
+- [x] gap cleaner: corrige gaps < 0.15s entre segmentos consecutivos
+- [x] fallback si no se detecta voz — mantiene timestamps originales sin modificar
+- [x] debug en meta: original/adjusted/delta por segmento + estadísticas
+- [x] respeta subtitles_edited=true — no sobreescribe ediciones manuales
+- [x] integrado en main.py como paso 11 (subtitle_builder → timing_aligner → renderer)
+
 ## Completado — Social Media
 - [x] Plantilla HTML de posts e historias para Instagram (`social/ig-posts.html`)
 - [x] 6 posts (1080×1080): identidad, AUTO SUBS, social proof, velocidad, multiplataforma, CTA

@@ -35,12 +35,13 @@ from src.modules.selector import select_clips
 from src.modules.start_refiner import refine_starts
 from src.modules.vertical_formatter import format_vertical
 from src.modules.subtitle_builder import build_subtitles
+from src.modules.timing_aligner import align_all_subtitles
 from src.modules.subtitle_renderer import render_subtitles
 from src.modules.exporter import export_pipeline
 
 
 def run(url: str, subtitles: bool = False, review: bool = False) -> None:
-    total = 11 if (subtitles and review) else 12 if subtitles else 10
+    total = 11 if (subtitles and review) else 13 if subtitles else 10
     print(f"\n=== Stream Content Pipeline ===\n")
 
     print(f"1/{total} Descargando VOD...")
@@ -84,6 +85,10 @@ def run(url: str, subtitles: bool = False, review: bool = False) -> None:
         subs_dir = build_subtitles(refined_path, transcript_path)
         print(f"    {subs_dir}\n")
 
+        print(f"11/{total} Alineando timing con audio real...")
+        subs_dir = align_all_subtitles(clips_dir="output/clips", subtitles_dir=subs_dir)
+        print(f"    {subs_dir}\n")
+
         if review:
             print("─" * 50)
             print("MODO REVISIÓN — render pausado.")
@@ -91,7 +96,7 @@ def run(url: str, subtitles: bool = False, review: bool = False) -> None:
             print("Luego ejecuta con --subtitles (sin --review) para renderizar.")
             print("─" * 50)
         else:
-            print(f"11/{total} Renderizando subtítulos...")
+            print(f"12/{total} Renderizando subtítulos...")
             subtitled_dir = render_subtitles(refined_path, vertical_dir)
             print(f"    {subtitled_dir}\n")
 
