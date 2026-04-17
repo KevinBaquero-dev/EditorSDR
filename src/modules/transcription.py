@@ -7,7 +7,14 @@ from faster_whisper import WhisperModel
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "output/transcripts"
-MODEL_SIZE = "small"  # balance velocidad/precisión para RTX 4060 8GB en MVP
+MODEL_SIZE = "medium"  # mejor precisión en español informal — upgrade desde small
+
+WHISPER_LANGUAGE       = "es"
+WHISPER_TASK           = "transcribe"
+WHISPER_INITIAL_PROMPT = (
+    "Stream de videojuegos en español latinoamericano. "
+    "Jerga gaming informal, palabras coloquiales y mezcla de inglés/español."
+)
 
 # Segmentos que Whisper genera cuando no hay voz clara — no aportan nada
 _JUNK_TEXT = {"", "...", "…", ".", ",", "- ", "[ Música ]", "[Música]", "[Music]", "[Applause]"}
@@ -37,7 +44,13 @@ def transcribe_video(video_path: str) -> str:
         model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
 
     logger.info(f"Transcribing: {video_path}")
-    segments_iter, info = model.transcribe(video_path, beam_size=5)
+    segments_iter, info = model.transcribe(
+        video_path,
+        language       = WHISPER_LANGUAGE,
+        task           = WHISPER_TASK,
+        initial_prompt = WHISPER_INITIAL_PROMPT,
+        beam_size      = 5,
+    )
 
     logger.info(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
 

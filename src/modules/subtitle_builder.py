@@ -4,17 +4,29 @@ import math
 import os
 import re
 
+import numpy as np
+
 from .subtitle_engine import _build_srt  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "output/subtitles"
 
-MAX_CHUNK_DURATION = 2.5    # segundos máx por segmento antes de dividir
-MAX_LINE_CHARS     = 38     # caracteres máx por línea
-MAX_LINES          = 2      # líneas máx por segmento
-SUBTITLE_OFFSET    = -0.2   # offset global (negativo = aparece antes)
-CAPITALIZE         = True   # capitalizar primera letra de cada chunk
+MAX_CHUNK_DURATION    = 2.5    # segundos máx por segmento antes de dividir
+MAX_SUBTITLE_DURATION = 4.0    # hard cap: ningún chunk puede superar este valor
+MAX_LINE_CHARS        = 38     # caracteres máx por línea
+MAX_LINES             = 2      # líneas máx por segmento
+SUBTITLE_OFFSET       = -0.2   # offset global (negativo = aparece antes)
+CAPITALIZE            = True   # capitalizar primera letra de cada chunk
+
+# ── silence trim ──────────────────────────────────────────────────────────────
+_SILENCE_THRESHOLD = 0.015   # RMS por debajo de este valor = silencio
+_TRIM_WINDOW_S     = 0.04    # ventana de análisis RMS (40ms)
+_TRIM_STEP_S       = 0.02    # paso de escaneo (20ms)
+_TRIM_MAX_SHIFT_S  = 0.35    # desplazamiento máximo permitido en start/end
+
+# ── gap cleaner ───────────────────────────────────────────────────────────────
+_GAP_MAX_TAIL_S    = 0.5     # gap mínimo antes del siguiente segmento
 
 # ── highlight tuning ──────────────────────────────────────────────────────────
 
@@ -47,6 +59,86 @@ _SEMANTIC_GROUPS: tuple[frozenset, ...] = (
 # Offsets adaptativos por duración de segmento (E)
 _OFFSET_SHORT  = -0.1   # segmentos 0.8s–1.2s
 _OFFSET_VSHORT =  0.0   # segmentos < 0.8s
+
+
+# ─── audio helpers ───────────────────────────────────────────────────────────
+
+def _load_clip_audio(clip_path: str) -> tuple:
+    """Carga audio mono float32 del clip. Devuelve (array, sr) o (None, None)."""
+    try:
+        import librosa
+        audio, sr = librosa.load(clip_path, sr=None, mono=True)
+        return audio, sr
+    except Exception as exc:
+        logger.debug("Audio load failed for %s: %s", clip_path, exc)
+        return None, None
+
+
+def _trim_silence(audio: np.ndarray, sr: int, start: float, end: float) -> tuple:
+    """
+    Recorta silencio inicial y final de un segmento usando RMS.
+    Devuelve (new_start, new_end) dentro de los límites originales.
+    """
+    win   = max(1, int(_TRIM_WINDOW_S * sr))
+    step  = max(1, int(_TRIM_STEP_S   * sr))
+    limit = int(_TRIM_MAX_SHIFT_S * sr)
+
+    s = int(start * sr)
+    e = int(end   * sr)
+    seg = audio[s : min(e, len(audio))]
+
+    if len(seg) < win:
+        return start, end
+
+    # onset: primer frame con voz real
+    new_start = start
+    for i in range(0, min(len(seg) - win, limit), step):
+        if np.sqrt(np.mean(seg[i : i + win] ** 2)) >= _SILENCE_THRESHOLD:
+            new_start = start + i / sr
+            break
+
+    # offset: último frame con voz real
+    new_end = end
+    for i in range(len(seg) - win, max(0, len(seg) - win - limit), -step):
+        if np.sqrt(np.mean(seg[i : i + win] ** 2)) >= _SILENCE_THRESHOLD:
+            new_end = start + (i + win) / sr
+            break
+
+    if new_end - new_start < 0.1:  # no comprimir por debajo de 100ms
+        return start, end
+
+    return round(new_start, 3), round(new_end, 3)
+
+
+def _enforce_max_duration(segments: list) -> list:
+    """Divide por mitad cualquier chunk que supere MAX_SUBTITLE_DURATION."""
+    result = []
+    for seg in segments:
+        if seg["end"] - seg["start"] <= MAX_SUBTITLE_DURATION:
+            result.append(seg)
+        else:
+            mid   = round((seg["start"] + seg["end"]) / 2, 3)
+            words = seg["text"].split()
+            half  = max(1, len(words) // 2)
+            result.append({"start": seg["start"], "end": mid,       "text": " ".join(words[:half])})
+            result.append({"start": mid,          "end": seg["end"], "text": " ".join(words[half:])})
+    return result
+
+
+def _gap_cleaner(segments: list) -> list:
+    """
+    Dos pases:
+    1. Solapamientos: trunca el final del segmento anterior.
+    2. Gap vacío: si el gap con el siguiente es > _GAP_MAX_TAIL_S, el
+       subtítulo ya terminó antes — no hace nada (la trim de silencio lo
+       resuelve). Si el gap es negativo (overlap), lo corrige.
+    """
+    for i in range(len(segments) - 1):
+        gap = segments[i + 1]["start"] - segments[i]["end"]
+        if gap < 0:
+            new_end = round(segments[i + 1]["start"] - 0.05, 3)
+            segments[i]["end"] = max(round(segments[i]["start"] + 0.1, 3), new_end)
+    return segments
 
 
 # ─── estado compartido de highlight ──────────────────────────────────────────
@@ -356,17 +448,21 @@ def _chunk_segment(seg: dict, highlight: bool = True,
 # ─── ajuste de segmentos ──────────────────────────────────────────────────────
 
 def _adjusted_segments(clip_start: float, clip_end: float, transcript: list,
-                       highlight: bool = True, features: dict | None = None) -> list[dict]:
+                       highlight: bool = True, features: dict | None = None,
+                       audio: "np.ndarray | None" = None, sr: int | None = None) -> list[dict]:
     """
     Filtra, ajusta timestamps al tiempo relativo del clip y divide en chunks.
     E – micro-timing: offset adaptado a duración del segmento.
+    Silence trim: si se pasa audio+sr, recorta inicio/fin de cada segmento
+    al primer/último frame con voz real antes de chunkear.
     """
     features         = features or {}
     intensity_factor = (
         features.get("intensity", 0.0) + features.get("text_density", 0.0)
     ) / 2.0
 
-    clip_dur = clip_end - clip_start
+    clip_dur   = clip_end - clip_start
+    use_trim   = audio is not None and sr is not None
     raw: list[dict] = []
 
     for s in transcript:
@@ -385,6 +481,13 @@ def _adjusted_segments(clip_start: float, clip_end: float, transcript: list,
         rel_end   = min(clip_dur, s["end"]   - clip_start + offset)
         if rel_end <= rel_start:
             continue
+
+        # Silence trim: ajustar al audio real del clip
+        if use_trim:
+            rel_start, rel_end = _trim_silence(audio, sr, rel_start, rel_end)
+            if rel_end <= rel_start:
+                continue
+
         raw.append({"start": round(rel_start, 3), "end": round(rel_end, 3), "text": s["text"]})
 
     hl_state = _hl_state_new()
@@ -394,6 +497,12 @@ def _adjusted_segments(clip_start: float, clip_end: float, transcript: list,
 
     for seg in segments:
         seg["text"] = _wrap(seg["text"])
+
+    # Hard cap: ningún chunk > MAX_SUBTITLE_DURATION
+    segments = _enforce_max_duration(segments)
+
+    # Gap cleaner: corrige solapamientos
+    segments = _gap_cleaner(segments)
 
     # G: coherencia visual post-proceso
     segments = _coherence_check(segments)
@@ -412,7 +521,8 @@ def _load_meta(meta_path: str) -> dict:
 
 # ─── API pública ──────────────────────────────────────────────────────────────
 
-def build_subtitles(refined_path: str, transcript_path: str) -> str:
+def build_subtitles(refined_path: str, transcript_path: str,
+                    clips_dir: str = "output/clips") -> str:
     """
     Genera archivos de subtítulos editables por clip.
 
@@ -423,6 +533,8 @@ def build_subtitles(refined_path: str, transcript_path: str) -> str:
 
     Nunca sobreescribe clips con subtitles_edited=true en su meta.
     J – desactiva highlight automáticamente si text_density < _LOW_DENSITY_THRESHOLD.
+    Silence trim — si clips_dir existe, carga el audio de cada clip y recorta
+    los timestamps de Whisper al inicio/fin real de la voz.
     """
     for path in (refined_path, transcript_path):
         if not os.path.exists(path):
@@ -460,7 +572,21 @@ def build_subtitles(refined_path: str, transcript_path: str) -> str:
         if features.get("text_density", 1.0) < _LOW_DENSITY_THRESHOLD:
             highlight = False
 
-        segments = _adjusted_segments(clip["start"], clip["end"], transcript, highlight, features)
+        # Silence trim: cargar audio del clip si está disponible
+        audio, sr = None, None
+        clip_audio_path = os.path.join(clips_dir, f"clip_{i:03d}.mp4")
+        if os.path.exists(clip_audio_path):
+            audio, sr = _load_clip_audio(clip_audio_path)
+            if audio is not None:
+                logger.debug(f"Clip {i:03d}: silence trim activo ({len(audio)/sr:.1f}s @ {sr}Hz)")
+            else:
+                logger.debug(f"Clip {i:03d}: silence trim omitido (no se pudo cargar audio)")
+        else:
+            logger.debug(f"Clip {i:03d}: silence trim omitido (clip no encontrado en {clips_dir})")
+
+        segments = _adjusted_segments(
+            clip["start"], clip["end"], transcript, highlight, features, audio, sr
+        )
 
         if not segments:
             logger.warning(f"Clip {i:03d}: sin segmentos en el transcript")
