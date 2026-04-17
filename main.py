@@ -34,12 +34,13 @@ from src.modules.scoring_engine import score_clips
 from src.modules.selector import select_clips
 from src.modules.start_refiner import refine_starts
 from src.modules.vertical_formatter import format_vertical
-from src.modules.subtitle_engine import burn_subtitles_batch
+from src.modules.subtitle_builder import build_subtitles
+from src.modules.subtitle_renderer import render_subtitles
 from src.modules.exporter import export_pipeline
 
 
 def run(url: str, subtitles: bool = False) -> None:
-    total = 11 if subtitles else 10
+    total = 12 if subtitles else 10
     print(f"\n=== Stream Content Pipeline ===\n")
 
     print(f"1/{total} Descargando VOD...")
@@ -79,8 +80,12 @@ def run(url: str, subtitles: bool = False) -> None:
     print(f"    {vertical_dir}\n")
 
     if subtitles:
-        print(f"10/{total} Subtítulos...")
-        subtitled_dir = burn_subtitles_batch(refined_path, transcript_path, vertical_dir)
+        print(f"10/{total} Generando archivos de subtítulos...")
+        subs_dir = build_subtitles(refined_path, transcript_path)
+        print(f"    {subs_dir}  (edita los .json/.srt antes de continuar)\n")
+
+        print(f"11/{total} Renderizando subtítulos...")
+        subtitled_dir = render_subtitles(refined_path, vertical_dir)
         print(f"    {subtitled_dir}\n")
 
     print(f"{total}/{total} Exportando...")
