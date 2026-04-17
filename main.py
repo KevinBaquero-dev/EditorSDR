@@ -39,8 +39,8 @@ from src.modules.subtitle_renderer import render_subtitles
 from src.modules.exporter import export_pipeline
 
 
-def run(url: str, subtitles: bool = False) -> None:
-    total = 12 if subtitles else 10
+def run(url: str, subtitles: bool = False, review: bool = False) -> None:
+    total = 11 if (subtitles and review) else 12 if subtitles else 10
     print(f"\n=== Stream Content Pipeline ===\n")
 
     print(f"1/{total} Descargando VOD...")
@@ -82,11 +82,18 @@ def run(url: str, subtitles: bool = False) -> None:
     if subtitles:
         print(f"10/{total} Generando archivos de subtítulos...")
         subs_dir = build_subtitles(refined_path, transcript_path)
-        print(f"    {subs_dir}  (edita los .json/.srt antes de continuar)\n")
+        print(f"    {subs_dir}\n")
 
-        print(f"11/{total} Renderizando subtítulos...")
-        subtitled_dir = render_subtitles(refined_path, vertical_dir)
-        print(f"    {subtitled_dir}\n")
+        if review:
+            print("─" * 50)
+            print("MODO REVISIÓN — render pausado.")
+            print(f"Edita los archivos en {subs_dir}")
+            print("Luego ejecuta con --subtitles (sin --review) para renderizar.")
+            print("─" * 50)
+        else:
+            print(f"11/{total} Renderizando subtítulos...")
+            subtitled_dir = render_subtitles(refined_path, vertical_dir)
+            print(f"    {subtitled_dir}\n")
 
     print(f"{total}/{total} Exportando...")
     export_dir = export_pipeline("output")
@@ -98,11 +105,13 @@ def run(url: str, subtitles: bool = False) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python main.py <URL> [--subtitles]")
+        print("Uso: python main.py <URL> [--subtitles] [--review]")
         print("Ejemplo: python main.py https://www.twitch.tv/videos/123456789")
-        print("         python main.py https://www.twitch.tv/videos/123456789 --subtitles")
+        print("         python main.py <URL> --subtitles    # genera + renderiza")
+        print("         python main.py <URL> --review       # genera SRT, pausa para editar")
         sys.exit(1)
 
     _url = sys.argv[1]
-    _subtitles = "--subtitles" in sys.argv
-    run(_url, subtitles=_subtitles)
+    _subtitles = "--subtitles" in sys.argv or "--review" in sys.argv
+    _review = "--review" in sys.argv
+    run(_url, subtitles=_subtitles, review=_review)
