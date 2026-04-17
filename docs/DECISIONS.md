@@ -114,6 +114,20 @@ Impacto: score = RMS_norm + 0.5 * diff_norm — reduce falsos positivos de fondo
 Versión: v0.2
 
 ## Decisión — 2026-04-16
+Decisión: scoring_engine como capa de decisión separada — no reemplaza intensity, lo usa como feature
+Opciones consideradas: reemplazar intensity con score compuesto, scoring dentro de clip_candidates, módulo separado
+Razón: mezclar detección y decisión en el mismo módulo acopla responsabilidades — en 2 iteraciones se vuelve imposible de mantener; intensity es señal cruda de audio_analysis que debe preservarse para trazabilidad y debugging
+Impacto: audio_analysis detecta, clip_candidates propone, scoring_engine decide — cada módulo tiene una sola responsabilidad; pesos ajustables sin tocar upstream
+Versión: v0.3
+
+## Decisión — 2026-04-16
+Decisión: score compuesto de 4 features (intensity 30%, text_density 25%, hook_strength 25%, duration_score 20%)
+Opciones consideradas: score solo por intensidad, regresión logística, solo duración + texto
+Razón: intensity sola no discrimina contexto ni calidad del contenido; text_density penaliza clips sin habla; hook_strength prioriza clips con apertura fuerte; duration_score penaliza extremos sin sesgo por contenido
+Impacto: spread 0.368 en primer run — diferenciación real; pesos ajustables con feedback futuro sin rediseñar el módulo
+Versión: v0.3
+
+## Decisión — 2026-04-16
 Decisión: subtitle_engine como módulo opcional, no integrado en pipeline por defecto
 Opciones consideradas: integrar en exporter, módulo independiente activable, parámetro en main.py
 Razón: subtítulos requieren re-encode completo — costoso en tiempo; MVP no lo necesita; mejor mantenerlo separado hasta que el pipeline básico esté estable
