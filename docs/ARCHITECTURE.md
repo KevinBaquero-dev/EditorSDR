@@ -1,5 +1,5 @@
 # ARCHITECTURE.md — Stream Content Pipeline
-> Dueño: GPT (Arquitecto) | v0.5
+> Dueño: GPT (Arquitecto) | v0.6
 
 ## Sistema
 Pipeline automatizado para convertir streams en clips cortos, seleccionados, refinados y formateados para redes sociales.
@@ -21,8 +21,10 @@ Pipeline automatizado para convertir streams en clips cortos, seleccionados, ref
 | 11* | timing_aligner | clips + subtitles JSON | output/subtitles/ (overwrite) | bandpass 80–3kHz + RMS dinámico + lerp |
 | 12* | subtitle_renderer | refined + vertical | output/subtitled/subtitled_NNN.mp4 | FFmpeg subtitles= force_style |
 | 13 | exporter | output/ | output/YYYY-MM-DD/ + metadata.json | organización final |
+| 14* | vod_trimmer | vod.mp4 + transcript (opt) | output/long/video_trimmed.mp4 | actividad sostenida + silencio prolongado + FFmpeg copy |
 
 *Pasos 10–12 opcionales — activados con `--subtitles` o `--review`
+Paso 14 opcional — activado con `--trim` (genera video largo para YouTube, independiente del flujo de clips)
 
 ## Flujo principal (10 pasos)
 ```
@@ -97,6 +99,20 @@ post-proceso:
 - FontSize=18, Bold=1, FontName=Arial
 - Alignment=2 (bottom center), MarginV=60px desde borde inferior
 - PrimaryColour blanco, OutlineColour negro, Outline=3, Shadow=1
+
+## Diseño de vod_trimmer
+```
+vod.mp4 → PyAV: duración sin decodificar
+        → librosa.load primeros N min (offset/duration) → _detect_start
+            ventana deslizante 8s: ratio activos ≥ 55%
+            + densidad de texto ≥ 0.5 chars/s (si hay transcript)
+        → librosa.load últimos N min → _detect_end
+            scan hacia atrás: último frame activo antes de ≥ 20s de silencio
+        → buffer ±5s en ambos límites
+        → sanity check: end > start + 60s (sino → full duration)
+        → FFmpeg -c copy → output/long/video_trimmed.mp4
+        → metadata JSON: start/end detectado, fallback flags, duración
+```
 
 ## Reglas
 - Cada módulo tiene un único input/output explícito

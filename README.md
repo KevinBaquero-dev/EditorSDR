@@ -87,6 +87,14 @@ python main.py https://www.twitch.tv/videos/TU_VOD_ID --review
 # → vuelve a ejecutar sin --review para renderizar
 ```
 
+### Con recorte para YouTube (detecta inicio y final real del stream)
+
+```bash
+python main.py https://www.twitch.tv/videos/TU_VOD_ID --trim
+# → genera output/long/video_trimmed.mp4 (sin re-encode)
+# → incluye metadata en output/long/video_trimmed_meta.json
+```
+
 ---
 
 ## Salida
@@ -94,6 +102,9 @@ python main.py https://www.twitch.tv/videos/TU_VOD_ID --review
 ```
 output/
 ├── raw/vod.mp4                          # VOD original
+├── long/                                # (--trim)
+│   ├── video_trimmed.mp4                #   VOD recortado para YouTube (sin re-encode)
+│   └── video_trimmed_meta.json          #   Metadata: inicio/final detectado, duración
 ├── transcripts/transcript.json          # Transcripción con timestamps
 ├── analysis/peaks.json                  # Picos de energía detectados
 ├── candidates/clips_candidates.json     # Candidatos generados
@@ -131,6 +142,7 @@ output/
 | `timing_aligner.py` | Alinea timestamps con voz real: RMS dinámico, lerp, gap cleaner, fallback |
 | `subtitle_renderer.py` | Quema SRT (editado o auto) sobre clips verticales |
 | `subtitle_engine.py` | Burn directo sin etapa editable (utilidad standalone) |
+| `vod_trimmer.py` | Detecta inicio/final real del stream y recorta para YouTube (sin re-encode) |
 | `exporter.py` | Organiza salida final con metadata |
 
 ---
@@ -201,6 +213,7 @@ Los parámetros más útiles están en los módulos:
 | Silence trim en subtitle_builder (RMS por segmento) | ✅ Listo v0.5 |
 | Transcripción medium + language/prompt explícito | ✅ Listo v0.5 |
 | Timing aligner (bandpass + lerp dinámico + gap semántico) | ✅ Listo v0.5 |
+| VOD trimmer (inicio/final automático para YouTube) | ✅ Listo v0.5 |
 | Feedback humano → ajuste de pesos | 🔲 Pendiente |
 | Scoring antes de clipper (refactor) | 🔲 Pendiente |
 | Auto-upload | 🔲 Futuro |

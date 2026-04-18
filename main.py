@@ -37,16 +37,23 @@ from src.modules.vertical_formatter import format_vertical
 from src.modules.subtitle_builder import build_subtitles
 from src.modules.timing_aligner import align_all_subtitles
 from src.modules.subtitle_renderer import render_subtitles
+from src.modules.vod_trimmer import trim_vod
 from src.modules.exporter import export_pipeline
 
 
-def run(url: str, subtitles: bool = False, review: bool = False) -> None:
+def run(url: str, subtitles: bool = False, review: bool = False,
+        trim: bool = False) -> None:
     total = 11 if (subtitles and review) else 13 if subtitles else 10
     print(f"\n=== Stream Content Pipeline ===\n")
 
     print(f"1/{total} Descargando VOD...")
     video_path = download_vod(url)
     print(f"    {video_path}\n")
+
+    if trim:
+        print(f"   [trim] Detectando y recortando VOD para YouTube...")
+        trimmed_path = trim_vod(video_path)
+        print(f"   [trim] {trimmed_path}\n")
 
     print(f"2/{total} Transcribiendo...")
     transcript_path = transcribe_video(video_path)
@@ -110,13 +117,15 @@ def run(url: str, subtitles: bool = False, review: bool = False) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python main.py <URL> [--subtitles] [--review]")
+        print("Uso: python main.py <URL> [--subtitles] [--review] [--trim]")
         print("Ejemplo: python main.py https://www.twitch.tv/videos/123456789")
         print("         python main.py <URL> --subtitles    # genera + renderiza")
         print("         python main.py <URL> --review       # genera SRT, pausa para editar")
+        print("         python main.py <URL> --trim         # recorta VOD completo para YouTube")
         sys.exit(1)
 
     _url = sys.argv[1]
     _subtitles = "--subtitles" in sys.argv or "--review" in sys.argv
     _review = "--review" in sys.argv
-    run(_url, subtitles=_subtitles, review=_review)
+    _trim = "--trim" in sys.argv
+    run(_url, subtitles=_subtitles, review=_review, trim=_trim)
