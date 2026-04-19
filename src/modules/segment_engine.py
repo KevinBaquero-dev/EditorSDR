@@ -1,13 +1,19 @@
 """
-segment_engine.py — Segmentación híbrida v3
+segment_engine.py — Segmentación híbrida v4
 
-Mejoras vs v2:
-  1. _content_richness()       — penaliza repetición (unique_ratio); fillers siguen fuera
-  2. Detección de transiciones — frases de cambio de tema bajan la similitud efectiva
-  3. Break confidence          — HARD BLOCK solo si histéresis + avg_sim bajo + gap real
-  4. Rhythm-adjusted decay     — clips densos (muchos picos) decaen más lento
-  5. Confidence filtra clips   — descarta candidatos débiles; ordena por confidence
-  6. Soft split por densidad   — clips largos con ≥3 picos/min → split en gap mayor
+Mejoras vs v3:
+  1. _content_richness()     — penaliza stopwords además de repetición;
+                               longitud ya no equivale a valor
+  2. Transición ≠ corte      — has_transition como factor en break_confidence,
+                               no modifica sim directamente (transición sola no corta)
+  3. break_confidence        — f_tra × f_sim: transición solo suma si sim también es baja
+                               gap normalizado a 30s (escala real de streaming)
+  4. Ritmo por intensidad    — rhythm usa mean_intensity del grupo (no count);
+                               3 picos fuertes > 10 picos débiles
+  5. Filtro en dos pasos     — calidad (confidence) + outliers virales (energy);
+                               clips raros pero brutales no se pierden
+  6. Split point con score   — gap + energía + semántica; no siempre el gap mayor
+  7. moment_tier             — jerarquía de momentos: weak/good/excellent/brutal
 """
 import json
 import logging
@@ -40,7 +46,6 @@ _FILLERS_ES = frozenset({
     'okay', 'oka', 'claro', 'sí', 'si', 'no', 'pues', 'este', 'sea',
 })
 
-# Frases que señalan cambio de tema en streaming — string matching, sin modelos
 _TRANSITION_PHRASES_ES = (
     'cambiando de tema', 'otra cosa', 'por cierto', 'ahora bien', 'hablando de',
     'pasando a', 'antes de continuar', 'de hecho', 'en fin', 'dejando eso',
@@ -53,54 +58,61 @@ _TRANSITION_PHRASES_ES = (
 @dataclass
 class SegmentConfig:
     # Momentum
-    momentum_decay_rate:        float = 0.20   # decay exponencial por segundo de silencio
-    momentum_threshold:         float = 0.12   # por debajo → cerrar ventana
-    text_momentum_boost:        float = 0.15   # texto significativo en gap → boost
-    min_text_richness:          float = 8.0    # richness mínima (fillers=0, repetición penaliza)
+    momentum_decay_rate:        float = 0.20
+    momentum_threshold:         float = 0.12
+    text_momentum_boost:        float = 0.15
+    min_text_richness:          float = 8.0   # richness mínima (penaliza fillers + stopwords)
 
     # Merge
     merge_gap_threshold:        float = 4.0
     max_clip_duration:          float = 120.0
     min_clip_duration:          float = 8.0
     max_candidates:             int   = 25
-    min_confidence:             float = 0.15   # descarta clips por debajo de este umbral
+    min_confidence:             float = 0.15  # umbral para filtro de calidad
 
     # Semántica
     semantic_threshold:         float = 0.25
-    semantic_hysteresis:        int   = 2      # caídas consecutivas para declarar break
-    break_confidence_threshold: float = 0.45  # confianza mínima para HARD BLOCK
+    semantic_hysteresis:        int   = 2
+    break_confidence_threshold: float = 0.45
 
     # Soft split
     dense_peak_rate:            float = 3.0   # picos/min para activar soft split
-    dense_min_gap_s:            float = 5.0   # gap mínimo entre picos para split
+    split_score_threshold:      float = 0.30  # score mínimo para aceptar un split
 
 
 # ─── helpers de texto ─────────────────────────────────────────────────────────
 
 def _content_richness(text: str) -> float:
     """
-    Riqueza de contenido real en el texto:
-    - Elimina fillers (eh, mmm, bueno, ok…)
-    - Elimina palabras cortas (≤2 chars)
-    - Penaliza repetición: unique_ratio = palabras_únicas / total_palabras
-      → "muy muy muy importante" → richness baja
-      → "literal esto súper importante bro" → richness plena
+    Riqueza de contenido real. Penaliza tres patrones:
+      1. Fillers (eh, mmm, bueno…) → eliminados antes de contar
+      2. Repetición (muy muy muy) → penalizada por unique_ratio
+      3. Alto porcentaje de stopwords → penalizada por stopword_factor
+         "esto es algo muy importante para todos" → stopword_ratio alto → richness reducida
 
-    Retorna float ≥ 0. Permite comparar la misma frase con sí misma
-    (unique_ratio = 1.0) vs una frase repetitiva (< 1.0).
+    No necesita NLP: las tres penalizaciones son cálculos de frecuencia de palabras.
     """
-    words   = re.findall(r"\b[a-záéíóúñü]+\b", text.lower())
+    words = re.findall(r"\b[a-záéíóúñü]+\b", text.lower())
+    if not words:
+        return 0.0
+
+    # Stopword ratio sobre todas las palabras (incluye fillers para el cálculo)
+    n_stopwords    = sum(1 for w in words if w in _STOPWORDS_ES)
+    stopword_ratio = n_stopwords / len(words)
+    stopword_factor = max(0.3, 1.0 - stopword_ratio)  # nunca destroza del todo
+
+    # Palabras de contenido real (sin fillers, sin palabras muy cortas)
     content = [w for w in words if w not in _FILLERS_ES and len(w) > 2]
     if not content:
         return 0.0
-    unique_ratio = len(set(content)) / len(content)
+
+    unique_ratio = len(set(content)) / len(content)   # 1.0 = todas distintas
     raw_chars    = sum(len(w) for w in content)
-    return raw_chars * max(unique_ratio, 0.3)  # mínimo 30%: no destruir frases largas
+    return raw_chars * max(unique_ratio, 0.3) * stopword_factor
 
 
 def _has_significant_text(transcript: list, t_start: float, t_end: float,
                            min_richness: float) -> bool:
-    """True si hay contenido real (no solo fillers, no solo repetición) en el rango."""
     if t_end <= t_start or not transcript:
         return False
     total = sum(
@@ -154,16 +166,18 @@ def process_active_window(peaks_by_time: list, transcript: list,
                            config: SegmentConfig,
                            content_end: float = float("inf")) -> list:
     """
-    Agrupa picos en ventanas usando momentum exponencial con ajuste por ritmo.
+    Agrupa picos usando momentum exponencial ajustado por ritmo.
 
-    Momentum decay:
-      - Base: exp(−decay_rate × gap_desde_fin_ventana)
-      - Ajustado por densidad de picos en la ventana actual:
-        más picos → decay más lento (contenido denso tiene más inercia)
-      - Texto significativo (no fillers, no repetitivo) → boost moderado
-      - Nuevo pico → momentum += intensity (boost proporcional)
+    Ritmo (rhythm_factor):
+      - Usa mean_intensity del grupo, no count
+      - 3 picos fuertes (0.9) > 10 picos débiles (0.2) en cuanto a inercia
+      - adj_decay = base_decay / (1 + 1.5 × mean_intensity)
+        → mean_intensity 0.9 → decay ~×0.43 más lento
+        → mean_intensity 0.3 → decay ~×0.69 más lento (menos inercia)
 
-    Cuando momentum < threshold → cierre natural (sin hard cutoff de segundos).
+    Texto en gap:
+      - Solo el contenido real (post-richness) extiende el momentum
+      - Fillers + stopwords no evitan el cierre de ventana
     """
     if not peaks_by_time:
         return []
@@ -181,18 +195,15 @@ def process_active_window(peaks_by_time: list, transcript: list,
     for peak in peaks_by_time[1:]:
         pre, post     = _get_window(peak["intensity"])
         candidate_end = round(min(content_end, peak["timestamp"] + post), 3)
+        gap_from_end  = max(0.0, peak["timestamp"] - current["end"])
 
-        # Tiempo de silencio real (negativo si el pico cae dentro de la ventana)
-        gap_from_end = max(0.0, peak["timestamp"] - current["end"])
-
-        # Ajuste de decay por ritmo: más picos acumulados → decay más lento
-        n_peaks_so_far = len(current["group_peaks"])
-        rhythm_factor  = 1.0 / (1.0 + 0.15 * n_peaks_so_far)
-        adj_decay      = config.momentum_decay_rate * max(0.4, rhythm_factor)
+        # Decay ajustado por intensidad media del grupo (no por conteo)
+        grp             = current["group_peaks"]
+        mean_intensity  = sum(p["intensity"] for p in grp) / len(grp)
+        adj_decay       = config.momentum_decay_rate / (1.0 + 1.5 * mean_intensity)
 
         decayed = current["_momentum"] * float(np.exp(-adj_decay * gap_from_end))
 
-        # Boost por texto significativo real en el gap
         if gap_from_end > 0 and _has_significant_text(
                 transcript, current["end"], peak["timestamp"], config.min_text_richness):
             decayed = min(1.0, decayed + config.text_momentum_boost)
@@ -221,21 +232,20 @@ def process_active_window(peaks_by_time: list, transcript: list,
 
 class SemanticAnalyzer:
     """
-    Evalúa continuidad semántica con tres capas:
+    Continuidad semántica con tres señales calibradas:
 
-    1. BoW cosine similarity con ventana de contexto (tokens de 2 clips previos)
-    2. Detección de frases de transición (string matching, sin modelos)
-       → "cambiando de tema", "por cierto", "y ya"… bajan la similitud efectiva
-    3. Break confidence: HARD BLOCK solo si histéresis cumplida + avg_sim bajo
-       + gap real > umbral → evita que la semántica tenga poder sin respaldo
-
-    Batch, sin dependencias externas.
+    1. BoW cosine (ventana de contexto, histéresis)
+    2. Frases de transición — no modifican sim; son factor en break_confidence
+       → "cambiando de tema" + sim baja → más confianza en el break
+       → "cambiando de tema" + sim alta → la transición no causa corte
+    3. break_confidence: f_tra × f_sim — la transición solo AMPLIFICA un drop
+       existente; nunca corta si el contenido sigue siendo coherente
     """
 
     def __init__(self, threshold: float = 0.25, hysteresis: int = 2,
                  break_confidence_threshold: float = 0.45):
-        self.threshold               = threshold
-        self.hysteresis              = hysteresis
+        self.threshold                = threshold
+        self.hysteresis               = hysteresis
         self.break_confidence_threshold = break_confidence_threshold
 
     def _tokenize(self, text: str) -> list:
@@ -255,39 +265,32 @@ class SemanticAnalyzer:
         return float(np.dot(vec_a, vec_b) / denom) if denom > 0 else 0.0
 
     def _has_transition_phrase(self, text: str) -> bool:
-        """
-        Detecta frases de cambio de tema en el texto del clip.
-        Son señales directas más fiables que la similitud léxica en streaming.
-        """
         t = text.lower()
         return any(phrase in t for phrase in _TRANSITION_PHRASES_ES)
 
-    def _break_confidence(self, sim: float, avg_sim: float, gap_s: float) -> float:
+    def _break_confidence(self, sim: float, avg_sim: float,
+                           gap_s: float, has_transition: bool) -> float:
         """
-        Confianza de que el break es real (no un falso positivo semántico).
+        Confianza de que el break es real. Señales en rango [0, 1]:
 
-        Factores:
-          - sim_drop: cuánto cae por debajo del threshold
-          - ctx_drop: el contexto acumulado también es bajo (no solo el punto actual)
-          - gap_ok:   hay un gap físico real entre clips (valida el corte)
+          f_sim — cuánto cae sim bajo el threshold
+          f_ctx — el contexto acumulado también es bajo (no outlier puntual)
+          f_gap — hay separación física real (normalizada a 30s para streaming)
+          f_tra — frase de transición detectada × f_sim
+                  → solo amplifica drops existentes; no causa breaks solos
+
+        Pesos suman a 1.0. Threshold 0.45 calibrado para que se necesiten
+        al menos dos señales activas (no basta una sola evidencia).
         """
-        sim_drop = max(0.0, (self.threshold - sim)     / max(self.threshold, 1e-6))
-        ctx_drop = max(0.0, (self.threshold - avg_sim) / max(self.threshold, 1e-6))
-        gap_ok   = min(1.0, gap_s / 15.0)
-        return round(0.40 * sim_drop + 0.35 * ctx_drop + 0.25 * gap_ok, 3)
+        t     = max(self.threshold, 1e-6)
+        f_sim = min(1.0, max(0.0, (t - sim)     / t))
+        f_ctx = min(1.0, max(0.0, (t - avg_sim) / t))
+        f_gap = min(1.0, gap_s / 30.0)
+        f_tra = (1.0 if has_transition else 0.0) * f_sim  # transición × sim_drop
+
+        return round(0.35 * f_sim + 0.30 * f_ctx + 0.20 * f_gap + 0.15 * f_tra, 3)
 
     def analyze_continuity(self, transcript: list, clips: list) -> tuple[list, list]:
-        """
-        Anota semantic_score, topic_continuity y has_transition en cada clip.
-
-        Flujo por clip[i]:
-          1. Ventana de contexto: ctx = tokens[i-2] + tokens[i-1]
-          2. sim = cosine(ctx, tokens[i])
-          3. Si hay frase de transición en clip[i] → sim_efectiva *= 0.5
-          4. Histéresis: contar caídas consecutivas < threshold
-          5. Si cumple histéresis: break_confidence(sim, avg_recent, gap)
-          6. HARD BLOCK solo si confidence >= break_confidence_threshold
-        """
         if not transcript:
             for c in clips:
                 c["semantic_score"]   = 0.5
@@ -298,7 +301,7 @@ class SemanticAnalyzer:
         token_cache   = [self._clip_tokens(transcript, c["start"], c["end"]) for c in clips]
         break_indices = []
         consecutive   = 0
-        sim_history   : list[float] = []
+        sim_history: list[float] = []
 
         for i, clip in enumerate(clips):
             if i == 0:
@@ -308,47 +311,36 @@ class SemanticAnalyzer:
                 sim_history.append(1.0)
                 continue
 
-            # Ventana de contexto (hasta 2 clips previos)
             ctx_tokens = []
             for j in range(max(0, i - 2), i):
                 ctx_tokens.extend(token_cache[j])
 
-            sim = self._cosine_sim(ctx_tokens, token_cache[i])
-
-            # Detección de frases de transición → bajar similitud efectiva
+            sim       = self._cosine_sim(ctx_tokens, token_cache[i])
             clip_text = _get_clip_text(transcript, clip["start"], clip["end"])
             has_trans = self._has_transition_phrase(clip_text)
-            if has_trans:
-                sim *= 0.5  # transición confirmada = contenido diferente
 
+            # sim NO se modifica por la transición — la transición es factor en confidence
             clip["semantic_score"] = round(sim, 4)
             clip["has_transition"] = has_trans
             sim_history.append(sim)
 
-            if sim < self.threshold:
-                consecutive += 1
-            else:
-                consecutive = 0
+            consecutive = consecutive + 1 if sim < self.threshold else 0
 
             if consecutive >= self.hysteresis:
-                # Calcular confianza del break antes de declararlo
                 avg_recent = float(np.mean(sim_history[-self.hysteresis:]))
                 gap_s      = clip["start"] - clips[i - 1]["end"]
-                bc         = self._break_confidence(sim, avg_recent, gap_s)
+                bc         = self._break_confidence(sim, avg_recent, gap_s, has_trans)
 
                 if bc >= self.break_confidence_threshold:
                     break_at = i - consecutive + 1
                     if break_at not in break_indices:
                         break_indices.append(break_at)
-                        logger.debug(
-                            "Semantic HARD break at [%d] (sim=%.3f, conf=%.2f): %.1f–%.1f",
-                            break_at, sim, bc, clips[break_at]["start"], clips[break_at]["end"],
-                        )
+                        logger.debug("Semantic HARD break [%d] sim=%.3f conf=%.2f: %.1f–%.1f",
+                                     break_at, sim, bc,
+                                     clips[break_at]["start"], clips[break_at]["end"])
                 else:
-                    logger.debug(
-                        "Semantic break rejected at [%d] (sim=%.3f, conf=%.2f < %.2f)",
-                        i, sim, bc, self.break_confidence_threshold,
-                    )
+                    logger.debug("Break rejected [%d] sim=%.3f conf=%.2f < %.2f",
+                                 i, sim, bc, self.break_confidence_threshold)
 
                 consecutive = 0
 
@@ -372,22 +364,63 @@ class SemanticAnalyzer:
             if sim < lowest_sim:
                 lowest_sim, best_break = sim, t
             t += window_s / 2
-        if best_break and lowest_sim < self.threshold:
-            return round(best_break, 3)
-        return None
+        return round(best_break, 3) if (best_break and lowest_sim < self.threshold) else None
 
 
-# ─── Soft split por densidad de picos ────────────────────────────────────────
+# ─── Soft split por densidad — con scoring de punto de corte ─────────────────
 
-def _soft_split_dense_clips(clips: list, config: SegmentConfig) -> list:
+def _score_split_point(midpoint: float, clip: dict, peaks_sorted: list,
+                        transcript: list | None,
+                        analyzer: "SemanticAnalyzer | None") -> float:
     """
-    Divide clips largos (>60s) con alta densidad de picos (≥dense_peak_rate picos/min).
+    Puntúa un candidato a punto de corte con tres señales:
 
-    Un clip continuo y semánticamente coherente puede ser demasiado largo para
-    consumo si tiene múltiples momentos fuertes. Partirlo en el mayor gap entre
-    picos consecutivos produce dos clips más concisos y manejables.
+      f_gap  — tamaño del gap físico entre el último pico pre y el primero post
+               (gap mayor → más natural cortar ahí)
+      f_sem  — drop de similitud semántica entre las dos mitades
+               (solo si analyzer disponible; 0.5 neutro si no)
+      f_nrg  — desequilibrio de energía entre mitades
+               (1.0 si una mitad domina; 0.0 si equilibrado)
+               → un buen corte separa momentos distintos en intensidad
 
-    Solo corta si el gap entre picos más largo supera dense_min_gap_s (5s defecto).
+    No usa siempre el mayor gap — pondera las tres señales.
+    """
+    pre_peaks  = [p for p in peaks_sorted if p["timestamp"] <= midpoint]
+    post_peaks = [p for p in peaks_sorted if p["timestamp"] >  midpoint]
+
+    # Gap físico entre el último pico previo y el primero posterior
+    pre_last   = pre_peaks[-1]["timestamp"]  if pre_peaks  else clip["start"]
+    post_first = post_peaks[0]["timestamp"]  if post_peaks else clip["end"]
+    gap        = post_first - pre_last
+    f_gap      = min(1.0, gap / 30.0)
+
+    # Desequilibrio de energía entre mitades
+    pre_e  = float(np.mean([p["intensity"] for p in pre_peaks]))  if pre_peaks  else 0.0
+    post_e = float(np.mean([p["intensity"] for p in post_peaks])) if post_peaks else 0.0
+    balance = min(pre_e, post_e) / max(max(pre_e, post_e), 1e-6)
+    f_nrg   = 1.0 - balance  # 0 = equilibrado (malo para cortar), 1 = desequilibrado
+
+    # Caída semántica entre mitades
+    f_sem = 0.5  # neutro por defecto
+    if analyzer and transcript:
+        half = (clip["end"] - clip["start"]) * 0.3
+        window = min(25.0, half)
+        t_pre  = analyzer._clip_tokens(transcript, midpoint - window, midpoint)
+        t_post = analyzer._clip_tokens(transcript, midpoint, midpoint + window)
+        sim    = analyzer._cosine_sim(t_pre, t_post)
+        f_sem  = 1.0 - sim
+
+    return round(0.40 * f_gap + 0.35 * f_sem + 0.25 * f_nrg, 4)
+
+
+def _soft_split_dense_clips(clips: list, config: SegmentConfig,
+                              transcript: list | None = None,
+                              analyzer: "SemanticAnalyzer | None" = None) -> list:
+    """
+    Divide clips largos (>60s) con alta densidad de picos (≥dense_peak_rate/min).
+
+    El punto de corte se elige por score (gap + semántica + energía),
+    no solo por el mayor gap — que puede caer en medio de una idea.
     """
     result = []
     for clip in clips:
@@ -398,37 +431,43 @@ def _soft_split_dense_clips(clips: list, config: SegmentConfig) -> list:
             result.append(clip)
             continue
 
-        peaks_per_min = len(peaks) / duration * 60
-        if peaks_per_min < config.dense_peak_rate:
+        if len(peaks) / duration * 60 < config.dense_peak_rate:
             result.append(clip)
             continue
 
-        # Mayor gap entre picos consecutivos → punto de split
         sorted_peaks = sorted(peaks, key=lambda p: p["timestamp"])
-        best_split, best_gap = None, 0.0
-        for j in range(len(sorted_peaks) - 1):
-            gap      = sorted_peaks[j + 1]["timestamp"] - sorted_peaks[j]["timestamp"]
-            midpoint = (sorted_peaks[j]["timestamp"] + sorted_peaks[j + 1]["timestamp"]) / 2
-            half_pre = midpoint - clip["start"]
-            half_post = clip["end"] - midpoint
-            if (gap > best_gap
-                    and half_pre  >= config.min_clip_duration
-                    and half_post >= config.min_clip_duration):
-                best_gap, best_split = gap, round(midpoint, 3)
 
-        if best_split and best_gap >= config.dense_min_gap_s:
-            logger.info("Soft split [%.1f–%.1f] at %.1f (%.1fppm, gap=%.1fs)",
-                        clip["start"], clip["end"], best_split, peaks_per_min, best_gap)
-            half_a = {**clip, "end":   best_split,
-                      "group_peaks": [p for p in peaks if p["timestamp"] <= best_split]}
-            half_b = {**clip, "start": best_split,
-                      "group_peaks": [p for p in peaks if p["timestamp"] >  best_split]}
+        # Candidatos: midpoints entre picos consecutivos con ambas mitades viables
+        candidates = [
+            (sorted_peaks[j]["timestamp"] + sorted_peaks[j + 1]["timestamp"]) / 2
+            for j in range(len(sorted_peaks) - 1)
+            if ((sorted_peaks[j]["timestamp"] + sorted_peaks[j + 1]["timestamp"]) / 2 - clip["start"] >= config.min_clip_duration
+                and clip["end"] - (sorted_peaks[j]["timestamp"] + sorted_peaks[j + 1]["timestamp"]) / 2 >= config.min_clip_duration)
+        ]
+
+        if not candidates:
+            result.append(clip)
+            continue
+
+        best_mid, best_score = max(
+            ((mid, _score_split_point(mid, clip, sorted_peaks, transcript, analyzer))
+             for mid in candidates),
+            key=lambda x: x[1],
+        )
+
+        if best_score >= config.split_score_threshold:
+            best_mid = round(best_mid, 3)
+            ppm = len(peaks) / duration * 60
+            logger.info("Soft split [%.1f–%.1f] at %.1f (score=%.2f, %.1fppm)",
+                        clip["start"], clip["end"], best_mid, best_score, ppm)
+            half_a = {**clip, "end":   best_mid,
+                      "group_peaks": [p for p in peaks if p["timestamp"] <= best_mid]}
+            half_b = {**clip, "start": best_mid,
+                      "group_peaks": [p for p in peaks if p["timestamp"] >  best_mid]}
             result.extend([half_a, half_b])
         else:
             result.append(clip)
 
-    if len(result) != len(clips):
-        logger.info("Soft split: %d → %d clips", len(clips), len(result))
     return result
 
 
@@ -436,16 +475,6 @@ def _soft_split_dense_clips(clips: list, config: SegmentConfig) -> list:
 
 def merge_clips(clips: list, config: SegmentConfig,
                 semantic_break_indices: list | None = None) -> list:
-    """
-    Une clips con gap ≤ dynamic_gap.
-
-    Gap dinámico según duración del clip previo:
-      ≥60s → ×0.5 (conservador: ya tiene contexto)
-      ≤15s → ×1.5 (permisivo: necesita más)
-
-    Semantic breaks son HARD BLOCKS: si la semántica declaró un corte con
-    suficiente confianza, no hay energía ni gap que lo revierta.
-    """
     if not clips:
         return []
 
@@ -455,7 +484,6 @@ def merge_clips(clips: list, config: SegmentConfig,
     for i, clip in enumerate(clips[1:], 1):
         last = merged[-1]
 
-        # HARD BLOCK: corte semántico confirmado
         if i in break_set:
             merged.append(clip.copy())
             continue
@@ -518,17 +546,64 @@ def _finalize_metrics(clip: dict, transcript: list | None) -> dict:
         4,
     )
 
+    # Jerarquía de momentos: combina confidence + energy para no penalizar
+    # clips con alta energía pero corta duración (outliers potencialmente virales)
+    combined = 0.6 * confidence + 0.4 * energy_score
+    if combined >= 0.70:
+        tier = "brutal"
+    elif combined >= 0.50:
+        tier = "excellent"
+    elif combined >= 0.30:
+        tier = "good"
+    else:
+        tier = "weak"
+
     clip.update({
         "peak_timestamp":   peak_timestamp,
         "intensity":        intensity,
         "energy_score":     energy_score,
         "nearest_text":     nearest,
         "confidence_score": confidence,
+        "moment_tier":      tier,
     })
     clip.setdefault("semantic_score",   0.5)
     clip.setdefault("topic_continuity", True)
     clip.setdefault("has_transition",   False)
     return clip
+
+
+# ─── Filtro en dos pasos ──────────────────────────────────────────────────────
+
+def _apply_filters(clips: list, config: SegmentConfig) -> list:
+    """
+    Filtro en dos pasos para no perder clips virales con baja confidence:
+
+    Paso 1 (calidad): clips con confidence ≥ min_confidence
+    Paso 2 (outliers): top ~20% por energy_score — clips raros pero brutales
+
+    La unión de ambos preserva el orden cronológico original.
+    """
+    quality_ids = {(c["start"], c["end"]) for c in clips
+                   if c.get("confidence_score", 0) >= config.min_confidence}
+
+    n_viral     = max(3, config.max_candidates // 5)
+    viral_ids   = {
+        (c["start"], c["end"])
+        for c in sorted(clips, key=lambda c: c.get("energy_score", 0), reverse=True)[:n_viral]
+    }
+
+    keep    = quality_ids | viral_ids
+    result  = [c for c in clips if (c["start"], c["end"]) in keep]
+
+    removed = len(clips) - len(result)
+    if removed:
+        logger.info(
+            "Confidence filter: %d → %d clips (quality=%d, viral=%d, threshold=%.2f)",
+            len(clips), len(result),
+            len(quality_ids & keep), len(viral_ids & keep),
+            config.min_confidence,
+        )
+    return result
 
 
 # ─── API pública ──────────────────────────────────────────────────────────────
@@ -537,19 +612,19 @@ def segment_video(peaks_path: str, transcript_path: str,
                   use_semantic: bool = True,
                   config: SegmentConfig | None = None) -> str:
     """
-    Segmentación híbrida v3: Momentum + Transition-aware Semantic + Dynamic Merge.
+    Segmentación híbrida v4.
 
     Input:
         peaks_path       — output/analysis/peaks.json
         transcript_path  — output/transcripts/transcript.json
-        use_semantic     — análisis semántico batch (Phase 2)
+        use_semantic     — análisis semántico batch
         config           — SegmentConfig para ajuste fino
 
     Output:
         output/candidates/clips_candidates.json
-
-    Campos extra vs legacy: energy_score, semantic_score, confidence_score,
-                             has_transition, topic_continuity
+        Campos: start, end, peak_timestamp, intensity, nearest_text,
+                energy_score, semantic_score, confidence_score,
+                moment_tier, topic_continuity, has_transition
     """
     for path in (peaks_path, transcript_path):
         if not os.path.exists(path):
@@ -581,7 +656,8 @@ def segment_video(peaks_path: str, transcript_path: str,
         w["end"] = _extend_to_segment_end(w["end"], best_ts, transcript, content_end)
         w["end"] = min(w["end"], w["start"] + config.max_clip_duration)
 
-    # ── Phase 2: Semantic — ANTES del merge, informa HARD BLOCKS ─────────
+    # ── Phase 2: Semantic — ANTES del merge ───────────────────────────────
+    analyzer: SemanticAnalyzer | None = None
     semantic_breaks: list[int] = []
     if use_semantic and len(windows) > 1:
         analyzer = SemanticAnalyzer(
@@ -591,26 +667,20 @@ def segment_video(peaks_path: str, transcript_path: str,
         )
         windows, semantic_breaks = analyzer.analyze_continuity(transcript, windows)
 
-    # ── Soft split por densidad (antes del merge para no rehacer splits) ──
-    windows = _soft_split_dense_clips(windows, config)
+    # ── Soft split — pasa el analyzer para scoring semántico del punto ────
+    windows = _soft_split_dense_clips(windows, config, transcript, analyzer)
 
     # ── Phase 1.5: Merge — semantic breaks son HARD BLOCKS ───────────────
     clips = merge_clips(windows, config, semantic_breaks)
 
-    # ── Métricas finales ──────────────────────────────────────────────────
+    # ── Métricas + tier de momento ────────────────────────────────────────
     for clip in clips:
         _finalize_metrics(clip, transcript)
 
-    # ── Filtrado real por confidence + duración ───────────────────────────
-    before = len(clips)
-    clips  = [
-        c for c in clips
-        if (config.min_clip_duration <= (c["end"] - c["start"]) <= config.max_clip_duration
-            and c.get("confidence_score", 0) >= config.min_confidence)
-    ]
-    if len(clips) < before:
-        logger.info("Confidence filter: %d → %d clips (threshold=%.2f)",
-                    before, len(clips), config.min_confidence)
+    # ── Filtro en dos pasos (calidad + outliers virales) ──────────────────
+    clips = _apply_filters(clips, config)
+    clips = [c for c in clips
+             if config.min_clip_duration <= (c["end"] - c["start"]) <= config.max_clip_duration]
 
     clips.sort(key=lambda c: c["start"])
     clips = clips[: config.max_candidates]
@@ -622,5 +692,8 @@ def segment_video(peaks_path: str, transcript_path: str,
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(clips, f, ensure_ascii=False, indent=2)
 
-    logger.info("Segments generated: %d → %s", len(clips), output_path)
+    tiers = {}
+    for c in clips:
+        tiers[c.get("moment_tier", "?")] = tiers.get(c.get("moment_tier", "?"), 0) + 1
+    logger.info("Segments: %d → %s | tiers: %s", len(clips), output_path, tiers)
     return output_path
