@@ -10,12 +10,13 @@ SCORE_THRESHOLD = 0.65
 MIN_TEMPORAL_GAP = 30.0  # segundos mínimos entre inicios de clips seleccionados
 
 
-def select_clips(ranked_path: str) -> str:
+def select_clips(ranked_path: str, output_dir: str = None) -> str:
     if not os.path.exists(ranked_path):
         raise FileNotFoundError(f"Input not found: {ranked_path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "selected_clips.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "selected_clips.json")
 
     with open(ranked_path, encoding="utf-8") as f:
         ranked = json.load(f)

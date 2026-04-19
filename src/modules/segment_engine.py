@@ -610,7 +610,8 @@ def _apply_filters(clips: list, config: SegmentConfig) -> list:
 
 def segment_video(peaks_path: str, transcript_path: str,
                   use_semantic: bool = True,
-                  config: SegmentConfig | None = None) -> str:
+                  config: SegmentConfig | None = None,
+                  output_dir: str = None) -> str:
     """
     Segmentación híbrida v4.
 
@@ -631,8 +632,9 @@ def segment_video(peaks_path: str, transcript_path: str,
             raise FileNotFoundError(f"Input not found: {path}")
 
     config = config or SegmentConfig()
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "clips_candidates.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "clips_candidates.json")
 
     with open(peaks_path, encoding="utf-8") as f:
         peaks = json.load(f)

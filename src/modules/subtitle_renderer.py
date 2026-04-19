@@ -12,7 +12,8 @@ OUTPUT_DIR = "output/subtitled"
 SUBTITLES_DIR = "output/subtitles"
 
 
-def render_subtitles(refined_path: str, vertical_dir: str) -> str:
+def render_subtitles(refined_path: str, vertical_dir: str,
+                     subtitles_dir: str = None, output_dir: str = None) -> str:
     """
     Quema los SRT de output/subtitles/ sobre los clips verticales.
 
@@ -26,7 +27,9 @@ def render_subtitles(refined_path: str, vertical_dir: str) -> str:
         raise FileNotFoundError(f"Input not found: {refined_path}")
 
     ffmpeg = _find_ffmpeg()
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    subs = subtitles_dir or SUBTITLES_DIR
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
 
     import json
     with open(refined_path, encoding="utf-8") as f:
@@ -34,14 +37,14 @@ def render_subtitles(refined_path: str, vertical_dir: str) -> str:
 
     if not clips:
         logger.warning("No clips to render subtitles for")
-        return OUTPUT_DIR
+        return out
 
     done, failed, skipped = 0, 0, 0
 
     for i, clip in enumerate(clips, start=1):
-        srt_path  = os.path.join(SUBTITLES_DIR, f"clip_{i:03d}.srt")
+        srt_path  = os.path.join(subs, f"clip_{i:03d}.srt")
         clip_file = os.path.join(vertical_dir, f"vertical_{i:03d}.mp4")
-        out_file  = os.path.join(OUTPUT_DIR, f"subtitled_{i:03d}.mp4")
+        out_file  = os.path.join(out, f"subtitled_{i:03d}.mp4")
 
         if not os.path.exists(srt_path):
             logger.warning(f"Clip {i:03d}: SRT no encontrado — ejecuta subtitle_builder primero")
@@ -63,9 +66,9 @@ def render_subtitles(refined_path: str, vertical_dir: str) -> str:
             failed += 1
 
     logger.info(
-        f"Subtitle render done: {done} ok | {failed} failed | {skipped} skipped -> {OUTPUT_DIR}"
+        f"Subtitle render done: {done} ok | {failed} failed | {skipped} skipped -> {out}"
     )
-    return OUTPUT_DIR
+    return out
 
 
 def _burn(ffmpeg: str, clip_path: str, srt_path: str, output_path: str) -> None:

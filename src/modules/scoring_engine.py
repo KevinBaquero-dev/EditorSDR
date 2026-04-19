@@ -55,13 +55,15 @@ def _phrase_complete(end: float, transcript: list) -> bool:
     return any(abs(s["end"] - end) < PHRASE_END_TOLERANCE for s in transcript)
 
 
-def score_clips(candidates_path: str, transcript_path: str, peaks_path: str) -> str:
+def score_clips(candidates_path: str, transcript_path: str, peaks_path: str,
+                output_dir: str = None) -> str:
     for path in (candidates_path, transcript_path, peaks_path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input not found: {path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "clips_ranked.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "clips_ranked.json")
 
     with open(candidates_path, encoding="utf-8") as f:
         candidates = json.load(f)

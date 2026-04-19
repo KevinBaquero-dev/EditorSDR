@@ -81,7 +81,7 @@ def _cut_clip(ffmpeg: str, video_path: str, start: float, duration: float, outpu
     return True
 
 
-def generate_clips(video_path: str, candidates_path: str) -> str:
+def generate_clips(video_path: str, candidates_path: str, output_dir: str = None) -> str:
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
     if not os.path.exists(candidates_path):
@@ -90,14 +90,15 @@ def generate_clips(video_path: str, candidates_path: str) -> str:
     ffmpeg = _find_ffmpeg()
     logger.info(f"Using ffmpeg: {ffmpeg}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
 
     with open(candidates_path, encoding="utf-8") as f:
         candidates = json.load(f)
 
     if not candidates:
         logger.warning("No candidates — no clips to generate")
-        return OUTPUT_DIR
+        return out
 
     success = 0
     failed = 0
@@ -106,7 +107,7 @@ def generate_clips(video_path: str, candidates_path: str) -> str:
         start = candidate["start"]
         end = candidate["end"]
         duration = round(end - start, 3)
-        output_path = os.path.join(OUTPUT_DIR, f"clip_{i:02d}.mp4")
+        output_path = os.path.join(out, f"clip_{i:02d}.mp4")
 
         if os.path.exists(output_path) and os.path.getsize(output_path) > 10_000:
             logger.info(f"clip_{i:02d} already exists, skipping")
@@ -124,5 +125,5 @@ def generate_clips(video_path: str, candidates_path: str) -> str:
             logger.error(f"clip_{i:02d} FAILED — skipping")
             failed += 1
 
-    logger.info(f"Done: {success} clips OK | {failed} failed → {OUTPUT_DIR}")
-    return OUTPUT_DIR
+    logger.info(f"Done: {success} clips OK | {failed} failed → {out}")
+    return out

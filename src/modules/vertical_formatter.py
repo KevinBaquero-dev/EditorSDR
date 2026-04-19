@@ -88,20 +88,22 @@ def format_vertical(
     video_path: str,
     position: str = CROP_POSITION,
     offset_px: int = CROP_OFFSET_PX,
+    output_dir: str = None,
 ) -> str:
     for path in (refined_path, video_path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input not found: {path}")
 
     ffmpeg = _find_ffmpeg()
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
 
     with open(refined_path, encoding="utf-8") as f:
         clips = json.load(f)
 
     if not clips:
         logger.warning("No refined clips to format")
-        return OUTPUT_DIR
+        return out
 
     if position != "center" or offset_px != 0:
         logger.info(f"Crop config: position={position} offset={offset_px:+d}px")
@@ -112,7 +114,7 @@ def format_vertical(
         end = clip["end"]
         duration = round(end - start, 3)
         score = clip.get("score", 0)
-        out_file = os.path.join(OUTPUT_DIR, f"vertical_{i:03d}.mp4")
+        out_file = os.path.join(out, f"vertical_{i:03d}.mp4")
 
         logger.info(f"[{i}/{len(clips)}] {start:.1f}-{end:.1f}s ({duration:.0f}s) score={score:.3f}")
 
@@ -122,5 +124,5 @@ def format_vertical(
         except RuntimeError as e:
             logger.error(f"Clip {i} failed: {e}")
 
-    logger.info(f"Vertical clips done: {len(output_paths)}/{len(clips)} -> {OUTPUT_DIR}")
-    return OUTPUT_DIR
+    logger.info(f"Vertical clips done: {len(output_paths)}/{len(clips)} -> {out}")
+    return out

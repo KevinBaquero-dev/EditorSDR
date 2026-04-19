@@ -28,12 +28,13 @@ def _load_audio_av(video_path: str, target_sr: int) -> tuple[np.ndarray, int]:
     return np.concatenate(chunks).astype(np.float32), target_sr
 
 
-def analyze_audio(video_path: str) -> str:
+def analyze_audio(video_path: str, output_dir: str = None) -> str:
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "peaks.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "peaks.json")
 
     logger.info(f"Loading audio: {video_path}")
     y, sr = _load_audio_av(video_path, SAMPLE_RATE)

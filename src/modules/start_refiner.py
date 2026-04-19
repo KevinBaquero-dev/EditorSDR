@@ -65,13 +65,15 @@ def _refined_start(clip_start: float, peak_ts: float, transcript: list, intensit
     return clip_start, "no_change"
 
 
-def refine_starts(selected_path: str, transcript_path: str) -> str:
+def refine_starts(selected_path: str, transcript_path: str,
+                  output_dir: str = None) -> str:
     for path in (selected_path, transcript_path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input not found: {path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "refined_clips.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "refined_clips.json")
 
     with open(selected_path, encoding="utf-8") as f:
         selected = json.load(f)

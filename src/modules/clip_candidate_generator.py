@@ -68,13 +68,15 @@ def _merge_overlapping(candidates: list) -> list:
     return merged
 
 
-def generate_clip_candidates(transcript_path: str, peaks_path: str) -> str:
+def generate_clip_candidates(transcript_path: str, peaks_path: str,
+                             output_dir: str = None) -> str:
     for path in (transcript_path, peaks_path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input not found: {path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "clips_candidates.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "clips_candidates.json")
 
     with open(transcript_path, encoding="utf-8") as f:
         transcript = json.load(f)

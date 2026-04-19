@@ -22,12 +22,13 @@ _JUNK_TEXT = {"", "...", "…", ".", ",", "- ", "[ Música ]", "[Música]", "[Mu
 LONG_SEGMENT_WARN_SEC = 30.0  # segmentos >30s rompen el clipper — se re-segmentan en clip_candidates
 
 
-def transcribe_video(video_path: str) -> str:
+def transcribe_video(video_path: str, output_dir: str = None) -> str:
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, "transcript.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_path = os.path.join(out, "transcript.json")
 
     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
         logger.info(f"Transcript already exists, skipping: {output_path}")

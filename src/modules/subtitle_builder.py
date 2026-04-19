@@ -522,7 +522,8 @@ def _load_meta(meta_path: str) -> dict:
 # ─── API pública ──────────────────────────────────────────────────────────────
 
 def build_subtitles(refined_path: str, transcript_path: str,
-                    clips_dir: str = "output/clips") -> str:
+                    clips_dir: str = "output/clips",
+                    output_dir: str = None) -> str:
     """
     Genera archivos de subtítulos editables por clip.
 
@@ -540,7 +541,8 @@ def build_subtitles(refined_path: str, transcript_path: str,
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input not found: {path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
 
     with open(refined_path, encoding="utf-8") as f:
         clips = json.load(f)
@@ -549,12 +551,12 @@ def build_subtitles(refined_path: str, transcript_path: str,
 
     if not clips:
         logger.warning("No clips to build subtitles for")
-        return OUTPUT_DIR
+        return out
 
     generated, skipped = 0, 0
 
     for i, clip in enumerate(clips, start=1):
-        base      = os.path.join(OUTPUT_DIR, f"clip_{i:03d}")
+        base      = os.path.join(out, f"clip_{i:03d}")
         json_path = f"{base}.json"
         srt_path  = f"{base}.srt"
         meta_path = f"{base}_meta.json"
@@ -617,9 +619,9 @@ def build_subtitles(refined_path: str, transcript_path: str,
         logger.debug(f"Clip {i:03d}: {len(segments)} chunks | {hl_count} highlights ({hl_density:.0%}) -> {json_path}")
 
     logger.info(
-        f"Subtitles built: {generated} generated | {skipped} skipped (edited) -> {OUTPUT_DIR}"
+        f"Subtitles built: {generated} generated | {skipped} skipped (edited) -> {out}"
     )
-    return OUTPUT_DIR
+    return out
 
 
 def srt_from_json(json_path: str) -> str:

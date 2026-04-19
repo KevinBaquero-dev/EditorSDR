@@ -303,7 +303,8 @@ def _cut_video(ffmpeg: str, video_path: str,
 
 def trim_vod(video_path: str,
              transcript_path: str | None = None,
-             peaks_path: str | None = None) -> str:
+             peaks_path: str | None = None,
+             output_dir: str = None) -> str:
     """
     Detecta inicio y final real del VOD y genera video_trimmed.mp4.
 
@@ -321,9 +322,10 @@ def trim_vod(video_path: str,
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_video = os.path.join(OUTPUT_DIR, "video_trimmed.mp4")
-    output_meta  = os.path.join(OUTPUT_DIR, "video_trimmed_meta.json")
+    out = output_dir or OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    output_video = os.path.join(out, "video_trimmed.mp4")
+    output_meta  = os.path.join(out, "video_trimmed_meta.json")
 
     transcript = None
     if transcript_path and os.path.exists(transcript_path):
