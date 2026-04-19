@@ -2,9 +2,23 @@
 > Dueño: SH Studios — aprueba Director
 
 ## Estado del proyecto
-Fase actual: v0.4 — Producción vertical + subtítulos editables
-Módulos activos: todos (13 módulos, pipeline de 10–12 pasos)
+Fase actual: v0.6 — Segmentación híbrida (Active Window + Semantic)
+Módulos activos: todos (15 módulos, pipeline de 10–12 pasos)
 Bloqueos: Ninguno
+
+## Completado — Segmentación híbrida (v0.6)
+- [x] segment_engine.py — Active Window + Semantic + Merge
+- [x] process_active_window() — agrupa picos con gap < 3s O texto en el gap
+- [x] SemanticAnalyzer — BoW cosine similarity entre clips, batch post-proceso
+- [x] analyze_continuity() — semantic_score + topic_continuity por clip
+- [x] detect_internal_breaks() — detecta cambio de tema dentro de clips largos
+- [x] merge_clips() — post-process merge con respeto a cortes semánticos
+- [x] confidence_score en metadata de cada clip (ponderado: intensity + duration + text + semantic + peaks)
+- [x] energy_score (media de intensidades del grupo de picos vs max) por clip
+- [x] max_clip_duration = 120s (vs 60s legacy) — clips más contextualizados
+- [x] --legacy flag en main.py para fallback a clip_candidate_generator
+- [x] clip_candidate_generator.py preservado sin cambios
+- [x] ARCHITECTURE.md, DECISIONS.md, LESSONS.md, TODO.md actualizados
 
 ## Completado — Timing Aligner (v0.5)
 - [x] timing_aligner.py — alineación de timestamps con voz real (RMS dinámico)

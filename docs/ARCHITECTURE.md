@@ -1,5 +1,5 @@
 # ARCHITECTURE.md — Stream Content Pipeline
-> Dueño: GPT (Arquitecto) | v0.6
+> Dueño: GPT (Arquitecto) | v0.7
 
 ## Sistema
 Pipeline automatizado para convertir streams en clips cortos, seleccionados, refinados y formateados para redes sociales.
@@ -11,7 +11,8 @@ Pipeline automatizado para convertir streams en clips cortos, seleccionados, ref
 | 1 | ingestion | URL Twitch | output/raw/vod.mp4 | yt-dlp |
 | 2 | transcription | vod.mp4 | output/transcripts/transcript.json | faster-whisper medium (CUDA), language=es |
 | 3 | audio_analysis | vod.mp4 | output/analysis/peaks.json | librosa RMS + derivada |
-| 4 | clip_candidate_generator | transcript + peaks | output/candidates/clips_candidates.json | ventana dinámica por intensidad |
+| 4 | segment_engine | peaks + transcript | output/candidates/clips_candidates.json | Active Window + Semantic + Merge |
+| 4* | clip_candidate_generator | transcript + peaks | output/candidates/clips_candidates.json | ventana estática por intensidad (legacy --legacy) |
 | 5 | clipper | vod.mp4 + candidates | output/clips/*.mp4 | FFmpeg stream copy |
 | 6 | scoring_engine | candidates + transcript + peaks | output/ranked/clips_ranked.json | score compuesto 4 features |
 | 7 | selector | clips_ranked.json | output/selected/selected_clips.json | top N + score threshold + diversidad temporal |
@@ -25,6 +26,7 @@ Pipeline automatizado para convertir streams en clips cortos, seleccionados, ref
 
 *Pasos 10–12 opcionales — activados con `--subtitles` o `--review`
 Paso 14 opcional — activado con `--trim` (genera video largo para YouTube, independiente del flujo de clips)
+Paso 4* fallback — activado con `--legacy` (usa clip_candidate_generator original)
 
 ## Flujo principal (10 pasos)
 ```
@@ -59,10 +61,25 @@ URL
 → re-run sin --review → subtitle_renderer → exporter
 ```
 
+## Diseño de segmentación (segment_engine v0.6)
+```
+peaks_by_time → process_active_window()
+                  gap ≤ 3s O texto en gap → misma ventana
+                  gap > 3s Y sin texto    → nueva ventana
+                  ventana > 120s          → cierre forzado
+              → SemanticAnalyzer.analyze_continuity()   [Phase 2, batch]
+                  BoW cosine similarity entre ventanas consecutivas
+                  sim < 0.25 → semantic_break_index (no merge a través del corte)
+              → merge_clips()   [Phase 1.5]
+                  gap ≤ 4s Y sin corte semántico → merge
+              → _finalize_metrics()
+                  intensity, energy_score, semantic_score, confidence_score
+```
+
 ## Diseño de scoring
 ```
 audio_analysis  → detecta (peaks + intensity)
-clip_candidates → propone (ventana + transcript)
+segment_engine  → propone (ventana activa + transcript + semántica)
 scoring_engine  → decide  (score = intensity*0.30 + text_density*0.25 + hook_strength*0.25 + duration_score*0.20)
 selector        → filtra  (top 15, score ≥ 0.65, gap temporal ≥ 30s)
 ```

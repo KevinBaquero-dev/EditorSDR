@@ -133,3 +133,31 @@ Opciones consideradas: integrar en exporter, módulo independiente activable, pa
 Razón: subtítulos requieren re-encode completo — costoso en tiempo; MVP no lo necesita; mejor mantenerlo separado hasta que el pipeline básico esté estable
 Impacto: burn_subtitles() existe y es funcional pero no se llama desde main.py; activable manualmente
 Versión: v0.2
+
+## Decisión — 2026-04-19
+Decisión: Reemplazar clip_candidate_generator con segment_engine (Active Window)
+Opciones consideradas: ajustar thresholds del módulo actual, agregar merge post-proceso, rediseñar completo
+Razón: el modelo de ventana estática por pico genera clips fragmentados cuando hay múltiples picos cercanos — el contenido sostenido se divide en 3–5 clips que representan un solo momento; el Active Window agrupa picos con gap < 3s o con texto entre ellos, produciendo clips continuos naturales
+Impacto: clips de múltiples picos cercanos se consolidan en uno solo; max_clip_duration (120s) previene clips excesivamente largos; clip_candidate_generator se mantiene como fallback --legacy
+Versión: v0.6
+
+## Decisión — 2026-04-19
+Decisión: Análisis semántico con BoW cosine similarity (sin modelos externos)
+Opciones consideradas: sentence-transformers (MiniLM), TF-IDF sklearn, BoW numpy puro, LLM API
+Razón: sentence-transformers requiere descarga de modelo y no está en requirements.txt; sklearn no es dependencia actual; BoW cosine similarity con numpy (ya disponible vía librosa) es suficiente para detectar cambios de tema en contenido de streaming sin overhead de instalación ni latencia de GPU
+Impacto: SemanticAnalyzer funciona offline, sin dependencias nuevas; precisión suficiente para streaming español (vocabulario acotado); actualizable a embeddings en el futuro sin cambiar la interfaz
+Versión: v0.6
+
+## Decisión — 2026-04-19
+Decisión: Los cortes semánticos informan el merge pero no lo bloquean absolutamente
+Opciones consideradas: semántica como hard block (nunca merge across break), semántica como soft signal (pesa en decisión), semántica solo como anotación
+Razón: la semántica basada en BoW puede dar falsos positivos en contenido con vocabulario variable; bloquear el merge en un falso positivo separaría clips que deberían estar juntos; el pipeline de scoring ya puede discriminar por calidad — la semántica es información adicional, no árbitro final
+Impacto: semantic_break_indices previene merge en cortes fuertes; pero si el análisis semántico no detecta el break, merge puede ocurrir; confianza en energía como fallback
+Versión: v0.6
+
+## Decisión — 2026-04-19
+Decisión: max_clip_duration = 120s en segment_engine (vs 60s en clip_candidate_generator)
+Opciones consideradas: mantener 60s, ampliar a 90s, ampliar a 120s, sin límite
+Razón: streams tienen momentos de alta actividad sostenida (ej. partida intensa, discusión larga) que duran 2–3 min — forzar 60s recortaría esos momentos artificialmente; scoring_engine penaliza duración extrema vía duration_score, así que el selector naturalmente descarta clips demasiado largos sin necesidad de un hard cut agresivo
+Impacto: clips pueden llegar hasta 120s; scoring los penaliza si superan el plateau de 45s; el usuario ve clips más contextualizados pero el selector puede no elegir los muy largos
+Versión: v0.6

@@ -42,3 +42,17 @@ Problema: picos detectados en ruido constante (música de fondo, teclado, ambien
 Causa raíz: RMS puro no distingue entre ruido sostenido y reacciones reales
 Solución: combinar RMS con derivada de energía — el ruido constante tiene derivada baja, las reacciones la tienen alta
 Lección: RMS solo es ciego a la "sorpresa". La derivada del RMS detecta cambios bruscos y filtra ruido estático.
+
+## Lección — 2026-04-19
+Módulo: clip_candidate_generator → segment_engine
+Problema: múltiples picos cercanos (ej. segundo 10, 25, 40 con gaps de 1–2s) generaban 3 clips separados en vez de uno continuo
+Causa raíz: el modelo de ventana estática crea un candidato por pico independientemente; el merge solo actúa si el overlap supera 50% del clip más corto, lo cual no ocurre con picos distanciados > post_buffer
+Solución: Active Window — mantener ventana abierta mientras gap < 3s O hay texto entre picos; solo cerrar si hay silencio sostenido real
+Lección: la fragmentación de clips es invisible en los logs pero destructiva para la calidad del contenido — el merge por overlap no es suficiente cuando los picos tienen distancias que superan el post-buffer individual.
+
+## Lección — 2026-04-19
+Módulo: segment_engine / SemanticAnalyzer
+Problema: análisis semántico con modelos de embeddings (sentence-transformers) requiere descarga, GPU warmup y dependencias extra que no están en requirements.txt
+Causa raíz: querer precisión semántica alta con modelos modernos
+Solución: BoW cosine similarity con numpy — ya disponible, cero setup, suficiente para detectar cambios de tema en vocabulario de streaming
+Lección: para análisis semántico de streaming en español, BoW + cosine similarity da resultados prácticos sin overhead. Guardar sentence-transformers para cuando la precisión sea el cuello de botella real.

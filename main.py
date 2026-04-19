@@ -28,7 +28,8 @@ logging.basicConfig(
 from src.modules.ingestion import download_vod
 from src.modules.transcription import transcribe_video
 from src.modules.audio_analysis import analyze_audio
-from src.modules.clip_candidate_generator import generate_clip_candidates
+from src.modules.segment_engine import segment_video
+from src.modules.clip_candidate_generator import generate_clip_candidates  # legacy --legacy
 from src.modules.clipper import generate_clips
 from src.modules.scoring_engine import score_clips
 from src.modules.selector import select_clips
@@ -42,7 +43,7 @@ from src.modules.exporter import export_pipeline
 
 
 def run(url: str, subtitles: bool = False, review: bool = False,
-        trim: bool = False) -> None:
+        trim: bool = False, legacy: bool = False) -> None:
     total = 11 if (subtitles and review) else 13 if subtitles else 10
     print(f"\n=== Stream Content Pipeline ===\n")
 
@@ -63,8 +64,11 @@ def run(url: str, subtitles: bool = False, review: bool = False,
     peaks_path = analyze_audio(video_path)
     print(f"    {peaks_path}\n")
 
-    print(f"4/{total} Generando candidatos...")
-    candidates_path = generate_clip_candidates(transcript_path, peaks_path)
+    print(f"4/{total} Segmentando clips{'  [legacy]' if legacy else ''}...")
+    if legacy:
+        candidates_path = generate_clip_candidates(transcript_path, peaks_path)
+    else:
+        candidates_path = segment_video(peaks_path, transcript_path)
     print(f"    {candidates_path}\n")
 
     print(f"5/{total} Cortando clips...")
@@ -117,15 +121,17 @@ def run(url: str, subtitles: bool = False, review: bool = False,
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python main.py <URL> [--subtitles] [--review] [--trim]")
+        print("Uso: python main.py <URL> [--subtitles] [--review] [--trim] [--legacy]")
         print("Ejemplo: python main.py https://www.twitch.tv/videos/123456789")
         print("         python main.py <URL> --subtitles    # genera + renderiza")
         print("         python main.py <URL> --review       # genera SRT, pausa para editar")
         print("         python main.py <URL> --trim         # recorta VOD completo para YouTube")
+        print("         python main.py <URL> --legacy       # usa segmentación por picos (v1)")
         sys.exit(1)
 
-    _url = sys.argv[1]
+    _url       = sys.argv[1]
     _subtitles = "--subtitles" in sys.argv or "--review" in sys.argv
-    _review = "--review" in sys.argv
-    _trim = "--trim" in sys.argv
-    run(_url, subtitles=_subtitles, review=_review, trim=_trim)
+    _review    = "--review" in sys.argv
+    _trim      = "--trim" in sys.argv
+    _legacy    = "--legacy" in sys.argv
+    run(_url, subtitles=_subtitles, review=_review, trim=_trim, legacy=_legacy)
